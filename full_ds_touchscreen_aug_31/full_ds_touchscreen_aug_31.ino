@@ -53,7 +53,7 @@ volatile short xpos = 128;
 volatile short ypos = 128;
 
 
-
+  
 
 void resetbuttons() {
   //Setting all button modes to input
@@ -82,12 +82,6 @@ FASTRUN void loop() {
   //serialInterface();
   //Serial.println(digitalRead(DPAD_RIGHT_PIN));
   //delay(500);
-
-  digitalWrite(PEN, HIGH);
-  delay(500);
-  digitalWrite(PEN, LOW);
-  delay(500);
-  Serial.println(digitalReadFast(CS_PIN));
 }
 
 
@@ -162,7 +156,7 @@ void setupTouchscreenPins() {
 
 
 void attachTouchscreenInterrupts(){
-  //attachInterrupt(SYNC, syncinterrupt, FALLING);
+  attachInterrupt(SYNC, syncinterrupt, FALLING);
   attachInterrupt(CS_PIN, CSfall, FALLING);
 }
 
@@ -246,4 +240,48 @@ FASTRUN void clockchangeb(){
   if(numclocks>15){
     numclocks = 0;
   }
+}
+
+
+void syncinterrupt() {
+  if(Serial.available()>0){
+    byte inbyte = Serial.read();
+    if(inbyte == 30){
+      //adjusting x pos
+      //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
+
+      for (byte i=0;i<16;i++){
+        xbits[i] = 0;//just resetting the list
+      }
+      byte numbytesreceived = 0;
+      boolean receiving = true;
+      while(receiving){
+        while(Serial.available()==0){
+          //pass - waiting until we're sure we have data in
+        }
+        inbyte = Serial.read();
+        if(inbyte==50){
+          xbits[numbytesreceived] = 0;
+          numbytesreceived++;
+        }else if(inbyte==51){
+          xbits[numbytesreceived] = 1;
+          numbytesreceived++;
+        }else if(inbyte == 68){
+          //done with the transmission
+          receiving = false;
+        }
+        Serial.write(numbytesreceived);//letting the pc know how many bits the DS has gotten - hopefully useful in case of a dropped bit somewhere
+        
+      }
+    }else if(inbyte == 31){
+      //adjusting y pos
+    }else if(inbyte == 32){
+      //touchscreen click
+      digitalWriteFast(PEN, LOW);
+    }else if(inbyte == 33){
+      //touchscreen release
+      digitalWriteFast(PEN, HIGH);
+    }
+  }
+  
 }
