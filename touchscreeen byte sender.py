@@ -55,7 +55,7 @@ mousepos  = 0, 0
 mousestate = 1 #1 means not clicked, 0 means clicked
 
 
-
+f = open("xlookup.txt", "r")
 
 
 
