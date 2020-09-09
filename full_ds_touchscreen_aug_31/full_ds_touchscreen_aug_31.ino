@@ -85,6 +85,7 @@ FASTRUN void syncinterrupt() {
   if(updatetouch){
     for(int i=0;i<16;i++){
       xbits[i] = xbuffer[i];
+      ybits[i] = ybuffer[i];
     }
     updatetouch = false;
   }
@@ -283,6 +284,31 @@ FASTRUN void loop() {
       updatetouch = true;
     }else if(inbyte == 31){
       //adjusting y pos
+      //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
+
+      for (byte i=0;i<16;i++){
+        ybuffer[i] = 0;//just resetting the list
+      }
+      byte numbytesreceived = 0;
+      boolean receiving = true;
+      while(receiving){
+        Serial.write(numbytesreceived);//letting the pc know how many bits the DS has gotten - hopefully useful in case of a dropped bit somewhere
+        while(Serial.available()==0){
+          //pass - waiting until we're sure we have data in
+        }
+        inbyte = Serial.read();
+        if(inbyte==50){
+          ybuffer[numbytesreceived] = 0;
+          numbytesreceived++;
+        }else if(inbyte==51){
+          ybuffer[numbytesreceived] = 1;
+          numbytesreceived++;
+        }else if(inbyte == 68){
+          //done with the transmission
+          receiving = false;
+        }
+      }
+      updatetouch = true;
     }else if(inbyte == 32){
       //touchscreen click
       digitalWriteFast(PEN, LOW);

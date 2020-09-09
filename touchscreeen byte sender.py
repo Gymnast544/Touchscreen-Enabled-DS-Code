@@ -2,6 +2,7 @@ import pygame
 import serial
 from serial.tools import list_ports
 import time
+from initlookups import *
 clock = pygame.time.Clock()
 
 def chooseDevice():
@@ -55,7 +56,6 @@ mousepos  = 0, 0
 mousestate = 1 #1 means not clicked, 0 means clicked
 
 
-f = open("xlookup.txt", "r")
 
 
 
@@ -79,6 +79,16 @@ def sendPos(xposlist):
         
     sendByte(68)
 
+def sendLookupPos(xpos):
+    found = False
+    index = 0
+    while not found:
+        currentlookup = xlookup[index]
+        #print(currentlookup)
+        if currentlookup[0] == xpos:
+            found = True
+        index+=1
+    sendPos(currentlookup[1])
 
 def sendMousePos(pos):
     pass
@@ -118,9 +128,9 @@ pygame.display.update()
 sendByte(32)#just pen down
 
 
-f = open("xlookup.txt", "w")
+#f = open("xlookup.txt", "w")
 currentval = 0
-xlookup = []
+#xlookup = []
 
 font = pygame.font.Font('freesansbold.ttf', 32) 
 
@@ -141,11 +151,14 @@ while True:
                 sendPos(postry)
             elif event.key == pygame.K_UP:
                 currentval = currentval+1
+                sendLookupPos(currentval)
             elif event.key == pygame.K_DOWN:
                 currentval = currentval-1
+                sendLookupPos(currentval)
             elif event.key==pygame.K_x:
-                f.write(str(xlookup))
-                f.close()
+                pass
+                #f.write(str(xlookup))
+                #f.close()
             screen.fill((0, 0, 0))
             text = font.render(str(currentval), True, (255, 255, 255))
             screen.blit(text, (0, 0))
