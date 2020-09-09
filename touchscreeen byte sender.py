@@ -62,36 +62,61 @@ mousestate = 1 #1 means not clicked, 0 means clicked
 
 def getResponse():
     while ser.in_waiting == 0:
-        print("waiting")
+        #print("waiting")
         pass
     for byte in ser.read():
-        print(byte)
+        #print(byte)
         return byte
 
-def sendPos(xposlist):
+def sendPos(xposlist, yposlist):
     ser.read(ser.in_waiting)
     print(xposlist, "sending pos")
     sendByte(30)
     numsent = 0
     while numsent<15:
-        numsent = getResponse()
-        sendByte(xposlist[numsent]+50)
+        response = getResponse()
+        if response == 16:
+            pass
+        else:
+            numsent = response
+            sendByte(xposlist[numsent]+50)
+        
+    sendByte(68)
+    ser.read(ser.in_waiting)
+    sendByte(31)
+    numsent = 0
+    while numsent<15:
+        response = getResponse()
+        if response == 16:
+            pass
+        else:
+            numsent = response
+            sendByte(yposlist[numsent]+50)
         
     sendByte(68)
 
-def sendLookupPos(xpos):
+
+def sendLookupPos(xpos, ypos):
     found = False
     index = 0
     while not found:
-        currentlookup = xlookup[index]
+        currentlookupx = xlookup[index]
         #print(currentlookup)
-        if currentlookup[0] == xpos:
+        if currentlookupx[0] == xpos:
             found = True
         index+=1
-    sendPos(currentlookup[1])
+    found = False
+    index = 0
+    while not found:
+        currentlookupy = ylookup[index]
+        #print(currentlookup)
+        if currentlookupy[0] == ypos:
+            found = True
+        index+=1
+    sendPos(currentlookupx[1], currentlookupy[1])
 
 def sendMousePos(pos):
-    pass
+    sendLookupPos(pos[0], pos[1])
 
 def changeBits(poslist, amount):
     string = ""
@@ -115,12 +140,11 @@ def changeBits(poslist, amount):
 postry = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 print("sending pos")
 
-sendPos(postry)
+sendPos(postry, postry)
 time.sleep(.5)
-sendPos(postry)
 
 pygame.init()
-size = width, height = 256, 256
+size = width, height = 256, 192
 screen = pygame.display.set_mode(size)
 print("Setted up")
 pygame.display.update()
@@ -128,43 +152,43 @@ pygame.display.update()
 sendByte(32)#just pen down
 
 
-#f = open("xlookup.txt", "w")
+#f = open("ylookup.txt", "w")
 currentval = 0
-#xlookup = []
+#ylookup = []
 
 font = pygame.font.Font('freesansbold.ttf', 32) 
 
 while True:
     pygame.display.update()
+    #pygame.clock.tick(30)
     events = False
     for event in pygame.event.get():
         events = True
         if event.type == pygame.KEYDOWN:
+            """
             if event.key == pygame.K_RIGHT:
-                xlookup.append([currentval, postry])
+                #ylookup.append([currentval, postry])
                 postry = changeBits(postry, 64)
-                sendPos(postry)
+                #sendPos(sendLookupPos(0), postry)
                 print(len(postry))
             elif event.key == pygame.K_LEFT:
+                #ylookup.append([currentval, postry])
                 postry = changeBits(postry, -64)
-                xlookup.append([currentval, postry])
-                sendPos(postry)
+                #sendPos(sendLookupPos(0), postry)
             elif event.key == pygame.K_UP:
                 currentval = currentval+1
-                sendLookupPos(currentval)
+                sendLookupPos(0,currentval)
             elif event.key == pygame.K_DOWN:
                 currentval = currentval-1
-                sendLookupPos(currentval)
+                sendLookupPos(0,currentval)
             elif event.key==pygame.K_x:
                 pass
-                #f.write(str(xlookup))
-                #f.close()
+                f.write(str(ylookup))
+                f.close()
             screen.fill((0, 0, 0))
             text = font.render(str(currentval), True, (255, 255, 255))
-            screen.blit(text, (0, 0))
+            screen.blit(text, (0, 0))"""
             
-                
-        """
         if event.type == pygame.MOUSEBUTTONDOWN:
             mousepos = event.pos
             mousestate = 0
@@ -176,12 +200,12 @@ while True:
             mousestate = 1
             print("MOUSEUP")
             sendByte(33)
-            sendMousePos(event.pos)
             #released
         elif event.type == pygame.MOUSEMOTION and (not mousestate):
             mousepos = event.pos
             print("MOVE", event.pos)
             sendMousePos(event.pos)
-            #released"""
+            #released
+        
     
 
