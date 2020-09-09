@@ -57,6 +57,8 @@ volatile boolean updatetouch = false;
 boolean xbuffer[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
 boolean ybuffer[16] = {0, 1, 1, 1, 1, 1, 1, 1,    0, 0, 0, 0, 0, 0, 0, 0};
 
+volatile boolean touchrunning = false;
+
   
 
 void resetbuttons() {
@@ -174,6 +176,7 @@ FASTRUN void CSfall() {
   attachInterrupt(SCK_PIN, clockchanging, RISING);
   pinMode(MISO_PIN, OUTPUT);
   digitalWriteFast(MISO_PIN, LOW);
+  touchrunning = true;
   //Serial.println("F");
 }
 
@@ -182,6 +185,7 @@ FASTRUN void CSrise() {
   attachInterrupt(CS_PIN, CSfall, FALLING);
   detachInterrupt(SCK_PIN);
   pinMode(MISO_PIN, INPUT);
+  touchrunning = false;
   //Serial.println("R");
   /*
   for(int i=0;i<8;i++){
@@ -251,7 +255,7 @@ FASTRUN void clockchangeb(){
 
 
 FASTRUN void loop() {
-  if(Serial.available()>0){
+  if(Serial.available()>0 && !touchrunning){
     byte inbyte = Serial.read();
     if(inbyte == 30){
       //adjusting x  pos

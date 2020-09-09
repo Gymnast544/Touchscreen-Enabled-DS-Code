@@ -73,10 +73,11 @@ def sendPos(xposlist, yposlist):
     print(xposlist, "sending pos")
     sendByte(30)
     numsent = 0
-    while numsent<15:
+    running = True
+    while running:
         response = getResponse()
         if response == 16:
-            pass
+            running = False
         else:
             numsent = response
             sendByte(xposlist[numsent]+50)
@@ -85,10 +86,11 @@ def sendPos(xposlist, yposlist):
     ser.read(ser.in_waiting)
     sendByte(31)
     numsent = 0
-    while numsent<15:
+    running = True
+    while running:
         response = getResponse()
         if response == 16:
-            pass
+            running = False
         else:
             numsent = response
             sendByte(yposlist[numsent]+50)
