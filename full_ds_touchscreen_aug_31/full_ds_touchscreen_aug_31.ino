@@ -83,17 +83,6 @@ void setup() {
 
 }
 
-FASTRUN void syncinterrupt() {
-  if(updatetouch){
-    for(int i=0;i<16;i++){
-      xbits[i] = xbuffer[i];
-      ybits[i] = ybuffer[i];
-    }
-    updatetouch = false;
-  }
-}
-
-
 
 void serialInterface() {
   for (int i = 0; i < Serial.available(); i++) {
@@ -153,7 +142,7 @@ void setupTouchscreenPins() {
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, INPUT);
   pinMode(PEN, OUTPUT);
-  digitalWrite(PEN, HIGH);
+  digitalWrite(PEN, LOW);
   pinMode(CS_PIN, INPUT);
   pinMode(SYNC, INPUT);
   Serial.begin(115200);
@@ -253,11 +242,29 @@ FASTRUN void clockchangeb(){
   }
 }
 
+volatile boolean waitforsync = false;
+
+FASTRUN void syncinterrupt() {
+  waitforsync = false;
+}
+
+
 
 FASTRUN void loop() {
-  if(Serial.available()>0 && !touchrunning){
+  if(Serial.available()>0){
+    waitforsync = true;
+    while(waitforsync){
+      //wait
+    }
+    while(Serial.available()>0){
     byte inbyte = Serial.read();
-    if(inbyte == 30){
+    if(inbyte == 32){
+      //touchscreen click
+      digitalWriteFast(PEN, LOW);
+    }else if(inbyte == 33){
+      //touchscreen release
+      digitalWriteFast(PEN, HIGH);
+    }else if(inbyte == 30){
       //adjusting x  pos
       //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
 
@@ -266,26 +273,36 @@ FASTRUN void loop() {
       }
       byte numbytesreceived = 0;
       boolean receiving = true;
+      byte index = 0;
       while(receiving){
-        Serial.write(numbytesreceived);//letting the pc know how many bits the DS has gotten - hopefully useful in case of a dropped bit somewhere
+        Serial.write(numbytesreceived);//letting the pc know how many bytes the DS has gotten - hopefully useful in case of a dropped bit somewhere
         while(Serial.available()==0){
           //pass - waiting until we're sure we have data in
         }
         inbyte = Serial.read();
-        if(inbyte==50){
-          xbuffer[numbytesreceived] = 0;
-          numbytesreceived++;
-        }else if(inbyte==51){
-          xbuffer[numbytesreceived] = 1;
-          numbytesreceived++;
-        }else if(inbyte == 68){
-          //done with the transmission
+        
+        //digitalWrite(DPAD_DOWN_PIN, LOW);
+        /*
+        for(byte pos = 7;pos>=0;pos--){
+          Serial.print("X");
+          //incrementing backwards on the byte
+          xbuffer[index] = bitRead(inbyte, pos);
+          index++;
+          Serial.print("B");
+        }
+        Serial.print("A");
+        */
+        numbytesreceived++;
+        if(numbytesreceived==2){
           receiving = false;
         }
         
         
       }
       updatetouch = true;
+
+
+      
     }else if(inbyte == 31){
       //adjusting y pos
       //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
@@ -313,13 +330,7 @@ FASTRUN void loop() {
         }
       }
       updatetouch = true;
-    }else if(inbyte == 32){
-      //touchscreen click
-      digitalWriteFast(PEN, LOW);
-    }else if(inbyte == 33){
-      //touchscreen release
-      digitalWriteFast(PEN, HIGH);
     }
   }
-  
+  }
 }

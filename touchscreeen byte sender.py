@@ -29,7 +29,9 @@ def closeSerial():
 
 def sendByte(byteint):
     global ser
+    print("Sending", byteint)
     ser.write(bytes(chr(byteint), 'utf-8'))
+    
 def verifyDevice(comport):
     verified = False
     tempser = serial.Serial(comport)
@@ -75,14 +77,30 @@ def sendPos(xposlist, yposlist):
     numsent = 0
     running = True
     while running:
+        print("Getting response")
         response = getResponse()
-        if response == 16:
+        print(response)
+        numsent = response
+        if numsent == 0:
+            print("Sending 1st byte")
+            #send the first byte
+            tosend = 0
+            for index, bit in enumerate(xposlist[0:7]):
+                tosend= tosend+(2**(7-index))*bit
+            print("Sending byte...")
+            sendByte(tosend)
+        elif numsent == 1:
+            print("Sending second byte")
+            #send the second byte
+            tosend = 0
+            for index, bit in enumerate(xposlist[7:]):
+                tosend= tosend+(2**(7-index))*bit
+            sendByte(int(tosend))
             running = False
         else:
-            numsent = response
-            sendByte(xposlist[numsent]+50)
-        
-    sendByte(68)
+            print("ERROR, ERROR", response)
+    print("X Done!")
+    #sendByte(68)
     ser.read(ser.in_waiting)
     sendByte(31)
     numsent = 0
@@ -141,8 +159,9 @@ def changeBits(poslist, amount):
 
 postry = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 print("sending pos")
-
-sendPos(postry, postry)
+sendByte(32)#just pen down
+exit()
+#sendPos(postry, postry)
 time.sleep(.5)
 
 pygame.init()
