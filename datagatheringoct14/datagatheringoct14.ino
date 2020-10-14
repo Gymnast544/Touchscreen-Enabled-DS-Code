@@ -78,48 +78,9 @@ void setup() {
   // put your setup code here, to run once:
   resetbuttons();
   setupTouchscreenPins();
-  attachTouchscreenInterrupts();
+  //attachTouchscreenInterrupts();
   Serial.begin(115200);
 
-}
-
-
-void serialInterface() {
-  for (int i = 0; i < Serial.available(); i++) {
-    //Checks all incoming bytes
-    int incomingbyte = Serial.read();
-    checkMode(incomingbyte);
-    //Serial.write(incomingbyte);
-    if (incomingbyte < 25) {
-      //Electronically pressing a button
-      int buttonnum = incomingbyte - 10;
-      pinstatus[buttonnum] = -1;//indicating to the input loop that the button is pressed
-      pinMode(pins[buttonnum], OUTPUT);
-      digitalWrite(pins[buttonnum], LOW);
-    } else {
-      //Stopping electronically pressing a button
-      int buttonnum = incomingbyte - 30;
-      pinstatus[buttonnum] = 1;//Setting the button status to released
-      pinMode(pins[buttonnum], INPUT);
-    }
-
-  }
-  for (int i = 0; i < 12; i++) {
-    if (pinstatus[i] > -1) {
-      //getting input
-      int pinread = digitalRead(pins[i]);
-      if (pinread != pinstatus[i]) {
-        if (pinread) {
-          Serial.write(pinup[i]);
-        }
-        else {
-          Serial.write(pindown[i]);
-        }
-      }
-      pinstatus[i] = pinread;
-    }
-
-  }
 }
 
 
@@ -251,87 +212,9 @@ FASTRUN void syncinterrupt() {
 
 
 FASTRUN void loop() {
-  if(Serial.available()>0){
-    waitforsync = true;
-    while(waitforsync){
-      //wait
-    }
-    while(Serial.available()>0){
-    byte inbyte = Serial.read();
-    if(inbyte == 32){
-      //touchscreen click
-      digitalWrite(PEN, LOW);
-      Serial.print("wrote");
-    }else if(inbyte == 33){
-      //touchscreen release
-      digitalWriteFast(PEN, HIGH);
-    }else if(inbyte == 30){
-      //adjusting x  pos
-      //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
-
-      for (byte i=0;i<16;i++){
-        xbuffer[i] = 0;//just resetting the list
-      }
-      byte numbytesreceived = 0;
-      boolean receiving = true;
-      byte index = 0;
-      while(receiving){
-        Serial.write(numbytesreceived);//letting the pc know how many bytes the DS has gotten - hopefully useful in case of a dropped bit somewhere
-        while(Serial.available()==0){
-          //pass - waiting until we're sure we have data in
-        }
-        inbyte = Serial.read();
-        
-        //digitalWrite(DPAD_DOWN_PIN, LOW);
-        /*
-        for(byte pos = 7;pos>=0;pos--){
-          Serial.print("X");
-          //incrementing backwards on the byte
-          xbuffer[index] = bitRead(inbyte, pos);
-          index++;
-          Serial.print("B");
-        }
-        Serial.print("A");
-        */
-        numbytesreceived++;
-        if(numbytesreceived==2){
-          receiving = false;
-        }
-        
-        
-      }
-      updatetouch = true;
-
-
-      
-    }else if(inbyte == 31){
-      //adjusting y pos
-      //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
-
-      for (byte i=0;i<16;i++){
-        ybuffer[i] = 0;//just resetting the list
-      }
-      byte numbytesreceived = 0;
-      boolean receiving = true;
-      while(receiving){
-        Serial.write(numbytesreceived);//letting the pc know how many bits the DS has gotten - hopefully useful in case of a dropped bit somewhere
-        while(Serial.available()==0){
-          //pass - waiting until we're sure we have data in
-        }
-        inbyte = Serial.read();
-        if(inbyte==50){
-          ybuffer[numbytesreceived] = 0;
-          numbytesreceived++;
-        }else if(inbyte==51){
-          ybuffer[numbytesreceived] = 1;
-          numbytesreceived++;
-        }else if(inbyte == 68){
-          //done with the transmission
-          receiving = false;
-        }
-      }
-      updatetouch = true;
-    }
-  }
-  }
+  elapsedMicros waiting = 0;
+  //while(!digitalReadFast(CS_PIN)){}
+  
+  //while(digitalReadFast(CS_PIN)){}
+  //Serial.println(waiting);
 }
