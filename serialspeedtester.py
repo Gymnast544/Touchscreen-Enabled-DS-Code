@@ -20,7 +20,6 @@ def initSerial(comport):
     print("Started serial")
     ser = serial.Serial(comport)
     print("Connected Serial")
-    ser.baudrate = 115200
     print("Baudrate adjusted")
 
 def closeSerial():
@@ -29,13 +28,12 @@ def closeSerial():
 
 def sendByte(byteint):
     global ser
-    print("Sending", byteint)
+    #print("Sending", byteint)
     ser.write(bytes(chr(byteint), 'utf-8'))
     
 def verifyDevice(comport):
     verified = False
     tempser = serial.Serial(comport)
-    tempser.baudrate = 115200
     tempser.write(bytes(chr(100), 'utf-8'))
     starttime = time.time()
     while time.time()-starttime<.5 and verified==False:
@@ -49,74 +47,8 @@ def verifyDevice(comport):
     print("Verification status of "+comport+" is "+str(verified))
     return verified
 
-print("Initing serial")
-initSerial(chooseDevice())
-print("Serial Inited")
 
-
-mousepos  = 0, 0
-mousestate = 1 #1 means not clicked, 0 means clicked
-
-
-
-
-
-
-def getResponse():
-    while ser.in_waiting == 0:
-        #print("waiting")
-        pass
-    for byte in ser.read():
-        #print(byte)
-        return byte
-
-def sendPos(xposlist, yposlist):
-    ser.read(ser.in_waiting)
-    print(xposlist, "sending pos")
-    sendByte(30)
-    numsent = 0
-    running = True
-    while running:
-        print("Getting response")
-        response = getResponse()
-        print(response)
-        numsent = response
-        if numsent == 0:
-            print("Sending 1st byte")
-            #send the first byte
-            tosend = 0
-            for index, bit in enumerate(xposlist[0:7]):
-                tosend= tosend+(2**(7-index))*bit
-            print("Sending byte...")
-            sendByte(tosend)
-        elif numsent == 1:
-            print("Sending second byte")
-            #send the second byte
-            tosend = 0
-            for index, bit in enumerate(xposlist[7:]):
-                tosend= tosend+(2**(7-index))*bit
-            sendByte(int(tosend))
-            running = False
-        else:
-            print("ERROR, ERROR", response)
-    print("X Done!")
-    #sendByte(68)
-    ser.read(ser.in_waiting)
-    sendByte(31)
-    numsent = 0
-    running = True
-    while running:
-        response = getResponse()
-        if response == 16:
-            running = False
-        else:
-            numsent = response
-            sendByte(yposlist[numsent]+50)
-        
-    sendByte(68)
-
-
-def sendLookupPos(xpos, ypos):
+def getLookupPos(xpos, ypos):
     found = False
     index = 0
     while not found:
@@ -133,100 +65,120 @@ def sendLookupPos(xpos, ypos):
         if currentlookupy[0] == ypos:
             found = True
         index+=1
-    sendPos(currentlookupx[1], currentlookupy[1])
+    return currentlookupx[1], currentlookupy[1]
 
-def sendMousePos(pos):
-    sendLookupPos(pos[0], pos[1])
 
-def changeBits(poslist, amount):
-    string = ""
-    for bit in poslist:
-        string=string+str(bit)
-    intval = int(string, 2)
-    intval = intval+amount
-    if intval<0:
-        intval = 0
-    string = "{0:b}".format(intval)#converting it back to binary
-    string = "0"*(16-len(string))+string#padding with 0s to get to 16 bits
-    toReturn = []
-    for bit in string:
-        toReturn.append(int(bit))
-    print(toReturn)
-    return toReturn
+def getResponse():
+    while ser.in_waiting == 0:
+        #print("waiting")
+        pass
+    for byte in ser.read():
+        #print(byte)
+        return byte
 
-#I think the appropriate amount to change by is 16
+
+datastringsample = "|0|.............000 000 0|"
+
+byte1buttons = ["A", "B", "X", "Y", "W"] #A, B, X, Y, DPADLEFT (west)
+byte2buttons = ["E", "U", "D", "L", "R"] #DPADRIGHT (east), DPADUP, DPADDOWN, L shoulder, R shoulder
+byte3buttons = ["T", "S", "C", "P", "O"] #sTart, Select, Cover (lid), Pen, PWR (On/Off)
+
+
+def parseString(datastring):
+    datafield = datastring.split("|")[2]
+    touchdata = datafield[-9:]
+    touchlist = touchdata.split()
+    touchx = int(touchlist[0])
+    touchy = int(touchlist[1])
+    touchpen = int(touchlist[2])
+
+    byte1=0
+    byte2=4
+    byte3=2
+    for (i, j) in enumerate(byte1buttons):
+        if not (j in datastring):
+            #this button is being pressed
+            byte1+=2**(i+3)
+        else:
+            #print(j)
+            pass
+    for (i, j) in enumerate(byte2buttons):
+        if not(j in datastring):
+            #this button is being pressed
+            byte2+=2**(i+3)
+        else:
+            #print(j)
+            pass
+    for (i, j) in enumerate(byte3buttons):
+        if not(j in datastring or (j=="P" and touchpen==1)):
+            #this button is being pressed
+            byte3+=2**(i+3)
+        else:
+            #print(j)
+            pass
+    toSend = [byte1, byte2, byte3]
+    xbytes, ybytes = getLookupPos(touchx, touchy)
+
+    #print(xbytes, ybytes)
+
+    byte4list = [0, 0, 0, xbytes[0], xbytes[1], xbytes[2], xbytes[3], xbytes[4]]
+    byte5list = [0, 0, 1, xbytes[5], xbytes[6], xbytes[7], xbytes[8], xbytes[9]]
+    byte6list = [0, 1, 0, xbytes[10], xbytes[11], xbytes[12], xbytes[13], xbytes[14]]
+    #print([byte4list, byte5list, byte6list])
+    
+    byte7list = [0, 1, 1, ybytes[0], ybytes[1], ybytes[2], ybytes[3], ybytes[4]]
+    byte8list = [1, 0, 0, ybytes[5], ybytes[6], ybytes[7], ybytes[8], ybytes[9]]
+    byte9list = [1, 0, 1, ybytes[10], ybytes[11], ybytes[12], ybytes[13], ybytes[14]]
+
+
+    bytelists = [byte4list, byte5list, byte6list, byte7list, byte8list, byte9list]
+
+    for bytelist in bytelists:
+        toAdd = 0
+        for i in range(8):
+            toAdd+=bytelist[i]*(2**i)
+        toSend.append(toAdd)
+
+    return toSend
+  
+print(parseString(datastringsample))
+
+
+
+def transmitData(datastring):
+    bytesToSend = parseString(datastring)
+    sendByte(245)
+    sendByte(bytesToSend[0])
+    sendByte(bytesToSend[1])
+    sendByte(bytesToSend[2])
+    sendByte(255)
+    for i in range(3, 9):
+        sendByte(bytesToSend[i])#sends indexes 3-9 in the list
+    sendByte(255)
+    #probably want to add input verification, not for now though
     
 
-postry = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-print("sending pos")
-sendByte(32)#just pen down
-exit()
-#sendPos(postry, postry)
-time.sleep(.5)
-
-pygame.init()
-size = width, height = 256, 192
-screen = pygame.display.set_mode(size)
-print("Setted up")
-pygame.display.update()
-
-sendByte(32)#just pen down
+print("Initing serial")
+initSerial(chooseDevice())
+print("Serial Inited")
+print(ser.in_waiting)
 
 
-#f = open("ylookup.txt", "w")
-currentval = 0
-#ylookup = []
 
-font = pygame.font.Font('freesansbold.ttf', 32) 
 
-while True:
-    pygame.display.update()
-    #pygame.clock.tick(30)
-    events = False
-    for event in pygame.event.get():
-        events = True
-        if event.type == pygame.KEYDOWN:
-            """
-            if event.key == pygame.K_RIGHT:
-                #ylookup.append([currentval, postry])
-                postry = changeBits(postry, 64)
-                #sendPos(sendLookupPos(0), postry)
-                print(len(postry))
-            elif event.key == pygame.K_LEFT:
-                #ylookup.append([currentval, postry])
-                postry = changeBits(postry, -64)
-                #sendPos(sendLookupPos(0), postry)
-            elif event.key == pygame.K_UP:
-                currentval = currentval+1
-                sendLookupPos(0,currentval)
-            elif event.key == pygame.K_DOWN:
-                currentval = currentval-1
-                sendLookupPos(0,currentval)
-            elif event.key==pygame.K_x:
-                pass
-                f.write(str(ylookup))
-                f.close()
-            screen.fill((0, 0, 0))
-            text = font.render(str(currentval), True, (255, 255, 255))
-            screen.blit(text, (0, 0))"""
-            
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mousepos = event.pos
-            mousestate = 0
-            print("MOUSEDOWN", event.pos)
-            sendByte(32)
-            sendMousePos(event.pos)
-            #clicked
-        elif event.type == pygame.MOUSEBUTTONUP:
-            mousestate = 1
-            print("MOUSEUP")
-            sendByte(33)
-            #released
-        elif event.type == pygame.MOUSEMOTION and (not mousestate):
-            mousepos = event.pos
-            print("MOVE", event.pos)
-            sendMousePos(event.pos)
-            #released
-        
-    
+timelist = []
+print("Starting")
+for i in range(1000):
+    starttime = time.time()
+    transmitData(datastringsample)
+    timelist.append(time.time()-starttime)
+    #print("Done", i)
+numsum = 0
+for i in timelist:
+    numsum = numsum+i
+
+
+print(numsum/len(timelist))
+
+
 

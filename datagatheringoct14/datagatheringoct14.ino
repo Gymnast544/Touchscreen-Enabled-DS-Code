@@ -32,32 +32,18 @@
 
 int mode = 0;
 
-int pinstatus[12] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; //Sets all button statuses to pressed, which is the default when the DS is off
 
 int pins[12] = {A_PIN, B_PIN, X_PIN, Y_PIN, DPAD_LEFT_PIN, DPAD_RIGHT_PIN, DPAD_UP_PIN, DPAD_DOWN_PIN, LEFT_SHOULDER_PIN, RIGHT_SHOULDER_PIN, START_PIN, SELECT_PIN};
 
-char pindown[12] = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21};//Bytes which are sent when a button is pressed
-char pinup[12] = {30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41};//Bytes which are sent when a button is released
 
-
+volatile byte numpolls = 0;
 
 volatile short numclocks = 0;
 volatile boolean bitbuffer[20];
 
-
 volatile boolean xbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
 volatile boolean ybits[16] = {0, 1, 1, 1, 1, 1, 1, 1,    0, 0, 0, 0, 0, 0, 0, 0};
 volatile boolean bbits[16] = {0, 0, 0, 1, 0, 1, 1, 1,    1, 0, 0, 0, 0, 0, 0, 0};
-
-volatile short xpos = 128; 
-volatile short ypos = 128;
-
-
-volatile boolean updatetouch = false;
-boolean xbuffer[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
-boolean ybuffer[16] = {0, 1, 1, 1, 1, 1, 1, 1,    0, 0, 0, 0, 0, 0, 0, 0};
-
-volatile boolean touchrunning = false;
 
   
 
@@ -66,12 +52,6 @@ void resetbuttons() {
   for(byte i=0;i<12;i++){
     pinMode(pins[i], INPUT_PULLUP);
   }
-
-  //Resets the status of each pin
-  for (int i = 0; i < 12; i++) {
-    pinstatus[i] = 1;
-  }
-
 }
 
 void setup() {
@@ -126,7 +106,6 @@ FASTRUN void CSfall() {
   attachInterrupt(SCK_PIN, clockchanging, RISING);
   pinMode(MISO_PIN, OUTPUT);
   digitalWriteFast(MISO_PIN, LOW);
-  touchrunning = true;
   //Serial.println("F");
 }
 
@@ -135,13 +114,8 @@ FASTRUN void CSrise() {
   attachInterrupt(CS_PIN, CSfall, FALLING);
   detachInterrupt(SCK_PIN);
   pinMode(MISO_PIN, INPUT);
-  touchrunning = false;
   //Serial.println("R");
-  /*
-  for(int i=0;i<8;i++){
-    Serial.print(bitbuffer[i]);
-  }*/
-  numclocks = 0;
+
 }
 
 
@@ -203,18 +177,43 @@ FASTRUN void clockchangeb(){
   }
 }
 
-volatile boolean waitforsync = false;
 
 FASTRUN void syncinterrupt() {
-  waitforsync = false;
+  //update buttons
 }
 
 
 
 FASTRUN void loop() {
-  elapsedMicros waiting = 0;
-  //while(!digitalReadFast(CS_PIN)){}
-  
-  //while(digitalReadFast(CS_PIN)){}
-  //Serial.println(waiting);
+  if(Serial.available()>0){
+    byte inByte = Serial.read();
+    if (inByte==245){
+      //starting with a data transfer, starting with buttons
+      boolean transferring = true;
+      while(transferring=true){
+        if(Serial.available()>0){
+          inByte = Serial.read();
+          if(inByte==255){
+            //move onto the next section
+            transferring=false;
+          }else{
+            //giving us real data
+          }
+        }
+      }
+      //moving onto touchscreen
+      transferring = true;
+      while(transferring=true){
+        if(Serial.available()>0){
+          inByte = Serial.read();
+          if(inByte==255){
+            //finishing the transfer
+            transferring=false;
+          }else{
+            //giving us real data
+          }
+        }
+      } 
+    }
+  }
 }
