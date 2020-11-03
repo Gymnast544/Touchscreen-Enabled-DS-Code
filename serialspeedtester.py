@@ -29,7 +29,8 @@ def closeSerial():
 def sendByte(byteint):
     global ser
     #print("Sending", byteint)
-    ser.write(bytes(chr(byteint), 'utf-8'))
+    #ser.write(bytes(chr(byteint), 'utf-8'))
+    ser.write([byteint])
     
 def verifyDevice(comport):
     verified = False
@@ -73,11 +74,12 @@ def getResponse():
         #print("waiting")
         pass
     for byte in ser.read():
-        #print(byte)
+        print(byte)
         return byte
 
 
 datastringsample = "|0|.............000 000 0|"
+datastringsample2 = "|0|........A....000 000 0|"
 
 byte1buttons = ["A", "B", "X", "Y", "W"] #A, B, X, Y, DPADLEFT (west)
 byte2buttons = ["E", "U", "D", "L", "R"] #DPADRIGHT (east), DPADUP, DPADDOWN, L shoulder, R shoulder
@@ -97,21 +99,21 @@ def parseString(datastring):
     byte3=2
     for (i, j) in enumerate(byte1buttons):
         if not (j in datastring):
-            #this button is being pressed
+            #this button is not being pressed
             byte1+=2**(i+3)
         else:
             #print(j)
             pass
     for (i, j) in enumerate(byte2buttons):
         if not(j in datastring):
-            #this button is being pressed
+            #this button is not being pressed
             byte2+=2**(i+3)
         else:
             #print(j)
             pass
     for (i, j) in enumerate(byte3buttons):
         if not(j in datastring or (j=="P" and touchpen==1)):
-            #this button is being pressed
+            #this button is not being pressed
             byte3+=2**(i+3)
         else:
             #print(j)
@@ -143,7 +145,9 @@ def parseString(datastring):
   
 print(parseString(datastringsample))
 
-
+def getAllRead():
+    for i in range(ser.in_waiting):
+        print(ser.read())
 
 def transmitData(datastring):
     bytesToSend = parseString(datastring)
@@ -165,20 +169,30 @@ print(ser.in_waiting)
 
 
 
-
+"""
 timelist = []
 print("Starting")
-for i in range(1000):
+for i in range(1):
     starttime = time.time()
     transmitData(datastringsample)
+    #print(getResponse())
     timelist.append(time.time()-starttime)
     #print("Done", i)
 numsum = 0
 for i in timelist:
     numsum = numsum+i
 
-
 print(numsum/len(timelist))
+"""
+
+for i in range(10):
+    transmitData(datastringsample2)
+    time.sleep(.5)
+    transmitData(datastringsample)
+    time.sleep(.5)
+
+
+getAllRead()
 
 
 

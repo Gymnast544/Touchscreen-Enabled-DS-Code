@@ -30,6 +30,8 @@
 #define SCK_PIN 13
 #define PEN 14
 
+#define firstthreebitmask 7
+
 int mode = 0;
 
 
@@ -39,13 +41,61 @@ int pins[12] = {A_PIN, B_PIN, X_PIN, Y_PIN, DPAD_LEFT_PIN, DPAD_RIGHT_PIN, DPAD_
 volatile byte numpolls = 0;
 
 volatile short numclocks = 0;
-volatile boolean bitbuffer[20];
+volatile bool bitbuffer[20];
 
-volatile boolean xbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
-volatile boolean ybits[16] = {0, 1, 1, 1, 1, 1, 1, 1,    0, 0, 0, 0, 0, 0, 0, 0};
-volatile boolean bbits[16] = {0, 0, 0, 1, 0, 1, 1, 1,    1, 0, 0, 0, 0, 0, 0, 0};
+//This is what the touchscreen spoofing code reads from for the data
+volatile bool xbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
+volatile bool ybits[16] = {0, 1, 1, 1, 1, 1, 1, 1,    0, 0, 0, 0, 0, 0, 0, 0};
+volatile bool bbits[16] = {0, 0, 0, 1, 0, 1, 1, 1,    1, 0, 0, 0, 0, 0, 0, 0};
 
-  
+
+
+struct frameData{
+  bool a;
+  bool b;
+  bool x;
+  bool y;
+  bool l;
+  bool r;
+  bool du;
+  bool dd;
+  bool dl;
+  bool dr;
+  bool startbutton;
+  bool selectbutton;
+  bool pen;
+  bool lid;
+  bool pwr;
+  bool framexbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
+  bool frameybits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
+};
+
+void FASTRUN executeFrame(frameData Frame){
+  if(Frame.a){
+    //button isn't pressed
+    pinMode(A_PIN, INPUT);
+  }else{
+    pinMode(A_PIN, OUTPUT);
+    digitalWrite(A_PIN, LOW);
+  }
+  /*
+  digitalWriteFast(B_PIN, Frame.b);
+  digitalWriteFast(X_PIN, Frame.x);
+  digitalWriteFast(Y_PIN, Frame.y);
+  digitalWriteFast(START_PIN, Frame.startbutton);
+  digitalWriteFast(SELECT_PIN, Frame.selectbutton);
+  digitalWriteFast(DPAD_UP_PIN, Frame.du);
+  digitalWriteFast(DPAD_DOWN_PIN, Frame.dd);
+  digitalWriteFast(DPAD_LEFT_PIN, Frame.dl);
+  digitalWriteFast(DPAD_RIGHT_PIN, Frame.dr);
+  digitalWriteFast(PEN, Frame.pen);
+  digitalWriteFast(LID, Frame.lid);*/
+  memcpy(xbits, Frame.framexbits, 16);//Tested and works - reassigns the array correctly 
+  memcpy(ybits, Frame.frameybits, 16);
+  //std::copy(Frame.framexbits + 0, Frame.framexbits+16, xbits);
+  //bool* xbits[16] = Frame.framexbits;
+  //ybits = Frame.frameybits;
+}
 
 void resetbuttons() {
   //Setting all button modes to input
@@ -88,6 +138,7 @@ void setupTouchscreenPins() {
   pinMode(SYNC, INPUT);
   Serial.begin(115200);
   Serial.println("Starting...");
+  Serial.write(245);
   while(digitalReadFast(SYNC)==1){
     //wait until the next frame
   }
@@ -187,33 +238,69 @@ FASTRUN void syncinterrupt() {
 FASTRUN void loop() {
   if(Serial.available()>0){
     byte inByte = Serial.read();
+    Serial.write("X");
+    Serial.println(int(inByte));
     if (inByte==245){
+      Serial.write("Y");
+      frameData inputFrame;
       //starting with a data transfer, starting with buttons
       boolean transferring = true;
-      while(transferring=true){
+      while(transferring==true){
         if(Serial.available()>0){
           inByte = Serial.read();
-          if(inByte==255){
+          byte identifier = inByte & firstthreebitmask;
+          if(identifier==7){
             //move onto the next section
+            Serial.write("d");
             transferring=false;
-          }else{
-            //giving us real data
+          }else if(identifier == 0){
+            //first data byte
+            //ranges from 3 to 8
+            inputFrame.a = bitRead(inByte, 3);
+            Serial.write("a");
+          }else if(identifier == 4){
+            //second data byte
+            Serial.write("b");
+          }else if(identifier == 2){
+            //third data byte
+            Serial.write("c");
           }
         }
       }
+      Serial.write("y");
       //moving onto touchscreen
       transferring = true;
-      while(transferring=true){
+      while(transferring==true){
         if(Serial.available()>0){
           inByte = Serial.read();
+          byte identifier = inByte & firstthreebitmask;
           if(inByte==255){
             //finishing the transfer
+            Serial.write("k");
             transferring=false;
-          }else{
-            //giving us real data
+          }else if(identifier == 0){
+            //first data byte
+            Serial.write("e");
+          }else if(identifier == 4){
+            //second data byte
+            Serial.write("f");
+          }else if(identifier == 2){
+            //third data byte
+            Serial.write("g");
+          }else if(identifier == 6){
+            //fourth data byte
+            Serial.write("h");
+          }else if(identifier == 1){
+            //fifth data byte
+            Serial.write("i");
+          }else if(identifier == 5){
+            //sixth data byte
+            Serial.write("j");
           }
         }
-      } 
+      }
+      Serial.write("x");
+      executeFrame(inputFrame);
     }
   }
 }
