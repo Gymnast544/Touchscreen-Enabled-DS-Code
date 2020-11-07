@@ -66,6 +66,7 @@ def getLookupPos(xpos, ypos):
         if currentlookupy[0] == ypos:
             found = True
         index+=1
+    print(currentlookupx[1], currentlookupy[1])
     return currentlookupx[1], currentlookupy[1]
 
 
@@ -79,7 +80,7 @@ def getResponse():
 
 
 datastringsample = "|0|.............000 000 0|"
-datastringsample2 = "|0|........A....000 000 0|"
+datastringsample2 = "|0|........P....191 128 0|"
 
 byte1buttons = ["A", "B", "X", "Y", "W"] #A, B, X, Y, DPADLEFT (west)
 byte2buttons = ["E", "U", "D", "L", "R"] #DPADRIGHT (east), DPADUP, DPADDOWN, L shoulder, R shoulder
@@ -147,6 +148,7 @@ print(parseString(datastringsample))
 
 def getAllRead():
     for i in range(ser.in_waiting):
+        #ser.read()
         print(ser.read())
 
 def transmitData(datastring):

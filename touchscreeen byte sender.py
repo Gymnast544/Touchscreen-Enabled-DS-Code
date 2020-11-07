@@ -160,7 +160,6 @@ def changeBits(poslist, amount):
 postry = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 print("sending pos")
 sendByte(32)#just pen down
-exit()
 #sendPos(postry, postry)
 time.sleep(.5)
 

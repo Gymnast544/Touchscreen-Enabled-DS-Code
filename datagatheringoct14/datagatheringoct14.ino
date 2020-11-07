@@ -44,9 +44,9 @@ volatile short numclocks = 0;
 volatile bool bitbuffer[20];
 
 //This is what the touchscreen spoofing code reads from for the data
-volatile bool xbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
-volatile bool ybits[16] = {0, 1, 1, 1, 1, 1, 1, 1,    0, 0, 0, 0, 0, 0, 0, 0};
-volatile bool bbits[16] = {0, 0, 0, 1, 0, 1, 1, 1,    1, 0, 0, 0, 0, 0, 0, 0};
+volatile boolean xbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
+volatile boolean ybits[16] = {0, 1, 1, 1, 1, 1, 1, 0,    0, 0, 0, 0, 0, 0, 0, 0};
+volatile boolean bbits[16] = {0, 0, 0, 1, 0, 1, 1, 1,    1, 0, 0, 0, 0, 0, 0, 0};
 
 
 
@@ -69,38 +69,110 @@ struct frameData{
   bool framexbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
   bool frameybits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
 };
-
+/*
 void FASTRUN executeFrame(frameData Frame){
+  digitalWriteFast(PEN, Frame.pen);
+  //Can't just digitalWrite to the button pins, each line is required (can't use a loop because I'm using digitalWriteFast)
   if(Frame.a){
     //button isn't pressed
     pinMode(A_PIN, INPUT);
   }else{
     pinMode(A_PIN, OUTPUT);
-    digitalWrite(A_PIN, LOW);
+    digitalWriteFast(A_PIN, LOW);
   }
-  /*
-  digitalWriteFast(B_PIN, Frame.b);
-  digitalWriteFast(X_PIN, Frame.x);
-  digitalWriteFast(Y_PIN, Frame.y);
-  digitalWriteFast(START_PIN, Frame.startbutton);
-  digitalWriteFast(SELECT_PIN, Frame.selectbutton);
-  digitalWriteFast(DPAD_UP_PIN, Frame.du);
-  digitalWriteFast(DPAD_DOWN_PIN, Frame.dd);
-  digitalWriteFast(DPAD_LEFT_PIN, Frame.dl);
-  digitalWriteFast(DPAD_RIGHT_PIN, Frame.dr);
-  digitalWriteFast(PEN, Frame.pen);
-  digitalWriteFast(LID, Frame.lid);*/
+  if(Frame.b){
+    //button isn't pressed
+    pinMode(B_PIN, INPUT);
+  }else{
+    pinMode(B_PIN, OUTPUT);
+    digitalWriteFast(B_PIN, LOW);
+  }
+  if(Frame.x){
+    //button isn't pressed
+    pinMode(X_PIN, INPUT);
+  }else{
+    pinMode(X_PIN, OUTPUT);
+    digitalWriteFast(X_PIN, LOW);
+  }
+  if(Frame.y){
+    //button isn't pressed
+    pinMode(Y_PIN, INPUT);
+  }else{
+    pinMode(Y_PIN, OUTPUT);
+    digitalWriteFast(Y_PIN, LOW);
+  }
+  if(Frame.startbutton){
+    //button isn't pressed
+    pinMode(START_PIN, INPUT);
+  }else{
+    pinMode(START_PIN, OUTPUT);
+    digitalWriteFast(START_PIN, LOW);
+  }
+  if(Frame.selectbutton){
+    //button isn't pressed
+    pinMode(SELECT_PIN, INPUT);
+  }else{
+    pinMode(SELECT_PIN, OUTPUT);
+    digitalWriteFast(SELECT_PIN, LOW);
+  }
+  if(Frame.l){
+    //button isn't pressed
+    pinMode(LEFT_SHOULDER_PIN, INPUT);
+  }else{
+    pinMode(LEFT_SHOULDER_PIN, OUTPUT);
+    digitalWriteFast(LEFT_SHOULDER_PIN, LOW);
+  }
+  if(Frame.r){
+    //button isn't pressed
+    pinMode(RIGHT_SHOULDER_PIN, INPUT);
+  }else{
+    pinMode(RIGHT_SHOULDER_PIN, OUTPUT);
+    digitalWriteFast(RIGHT_SHOULDER_PIN, LOW);
+  }
+  if(Frame.du){
+    //button isn't pressed
+    pinMode(DPAD_UP_PIN, INPUT);
+  }else{
+    pinMode(DPAD_UP_PIN, OUTPUT);
+    digitalWriteFast(DPAD_UP_PIN, LOW);
+  }
+  if(Frame.dd){
+    //button isn't pressed
+    pinMode(DPAD_DOWN_PIN, INPUT);
+  }else{
+    pinMode(DPAD_DOWN_PIN, OUTPUT);
+    digitalWriteFast(DPAD_DOWN_PIN, LOW);
+  }
+  if(Frame.dl){
+    //button isn't pressed
+    pinMode(DPAD_LEFT_PIN, INPUT);
+  }else{
+    pinMode(DPAD_LEFT_PIN, OUTPUT);
+    digitalWriteFast(DPAD_LEFT_PIN, LOW);
+  }
+  if(Frame.dr){
+    //button isn't pressed
+    pinMode(DPAD_RIGHT_PIN, INPUT);
+  }else{
+    pinMode(DPAD_RIGHT_PIN, OUTPUT);
+    digitalWriteFast(DPAD_RIGHT_PIN, LOW);
+  }
+  if(Frame.lid){
+    //button isn't pressed
+    pinMode(LID, INPUT);
+  }else{
+    pinMode(LID, OUTPUT);
+    digitalWriteFast(A_PIN, LOW);
+  }
+  //TODO: IMPLEMENT POWER
   memcpy(xbits, Frame.framexbits, 16);//Tested and works - reassigns the array correctly 
   memcpy(ybits, Frame.frameybits, 16);
-  //std::copy(Frame.framexbits + 0, Frame.framexbits+16, xbits);
-  //bool* xbits[16] = Frame.framexbits;
-  //ybits = Frame.frameybits;
-}
+}*/
 
 void resetbuttons() {
   //Setting all button modes to input
   for(byte i=0;i<12;i++){
-    pinMode(pins[i], INPUT_PULLUP);
+    pinMode(pins[i], INPUT);
   }
 }
 
@@ -108,28 +180,14 @@ void setup() {
   // put your setup code here, to run once:
   resetbuttons();
   setupTouchscreenPins();
-  //attachTouchscreenInterrupts();
+  attachTouchscreenInterrupts();
   Serial.begin(115200);
 
 }
 
 
-
-void checkMode(int incomingbyte) {
-  //Checks any incoming bytes to see if they're a mode switching byte
-
-  if (incomingbyte == 100) {
-    //Performs the "handshake test"
-    //If it receives byte 100, it will send byte 101 - this is the verification that the desktop program uses to verify that it's an Input Interface connected
-    Serial.write(101);
-  }
-}
-
-
 void setupTouchscreenPins() {
   // put your setup code here, to run once:
-
-
   pinMode(MOSI_PIN, INPUT);
   pinMode(MISO_PIN, INPUT);
   pinMode(PEN, OUTPUT);
@@ -139,9 +197,6 @@ void setupTouchscreenPins() {
   Serial.begin(115200);
   Serial.println("Starting...");
   Serial.write(245);
-  while(digitalReadFast(SYNC)==1){
-    //wait until the next frame
-  }
 }
 
 
@@ -183,6 +238,7 @@ FASTRUN void clockchanging() {
         //x pos
         digitalWriteFast(MISO_PIN, xbits[0]);
         attachInterrupt(SCK_PIN, clockchangex, FALLING);
+        Serial.println("X");
       }else{
         //y pos
         digitalWriteFast(MISO_PIN, ybits[0]);
@@ -232,9 +288,9 @@ FASTRUN void clockchangeb(){
 FASTRUN void syncinterrupt() {
   //update buttons
 }
+void loop(){}
 
-
-
+/*
 FASTRUN void loop() {
   if(Serial.available()>0){
     byte inByte = Serial.read();
@@ -257,12 +313,26 @@ FASTRUN void loop() {
             //first data byte
             //ranges from 3 to 8
             inputFrame.a = bitRead(inByte, 3);
+            inputFrame.b = bitRead(inByte, 4);
+            inputFrame.x = bitRead(inByte, 5);
+            inputFrame.y = bitRead(inByte, 6);
+            inputFrame.dl = bitRead(inByte, 7);
             Serial.write("a");
           }else if(identifier == 4){
             //second data byte
+            inputFrame.dr = bitRead(inByte, 3);
+            inputFrame.du = bitRead(inByte, 4);
+            inputFrame.dd = bitRead(inByte, 5);
+            inputFrame.l = bitRead(inByte, 6);
+            inputFrame.r = bitRead(inByte, 7);
             Serial.write("b");
           }else if(identifier == 2){
             //third data byte
+            inputFrame.startbutton = bitRead(inByte, 3);
+            inputFrame.selectbutton = bitRead(inByte, 4);
+            inputFrame.lid = bitRead(inByte, 5);
+            inputFrame.pen = bitRead(inByte, 6);
+            inputFrame.pwr = bitRead(inByte, 7);
             Serial.write("c");
           }
         }
@@ -280,27 +350,60 @@ FASTRUN void loop() {
             transferring=false;
           }else if(identifier == 0){
             //first data byte
+            inputFrame.framexbits[0] = bitRead(inByte, 3);
+            inputFrame.framexbits[1] = bitRead(inByte, 4);
+            inputFrame.framexbits[2] = bitRead(inByte, 5);
+            inputFrame.framexbits[3] = bitRead(inByte, 6);
+            inputFrame.framexbits[4] = bitRead(inByte, 7);
             Serial.write("e");
           }else if(identifier == 4){
             //second data byte
+            inputFrame.framexbits[5] = bitRead(inByte, 3);
+            inputFrame.framexbits[6] = bitRead(inByte, 4);
+            inputFrame.framexbits[7] = bitRead(inByte, 5);
+            inputFrame.framexbits[8] = bitRead(inByte, 6);
+            inputFrame.framexbits[9] = bitRead(inByte, 7);
             Serial.write("f");
           }else if(identifier == 2){
             //third data byte
+            inputFrame.framexbits[10] = bitRead(inByte, 3);
+            inputFrame.framexbits[11] = bitRead(inByte, 4);
+            inputFrame.framexbits[12] = bitRead(inByte, 5);
+            inputFrame.framexbits[13] = bitRead(inByte, 6);
+            inputFrame.framexbits[14] = bitRead(inByte, 7);
             Serial.write("g");
           }else if(identifier == 6){
             //fourth data byte
+            ybits[0] = bitRead(inByte, 3);
+            ybits[1] = bitRead(inByte, 4);
+            ybits[2] = bitRead(inByte, 5);
+            ybits[3] = bitRead(inByte, 6);
+            ybits[4] = bitRead(inByte, 7);
             Serial.write("h");
           }else if(identifier == 1){
             //fifth data byte
+            ybits[5] = bitRead(inByte, 3);
+            ybits[6] = bitRead(inByte, 4);
+            ybits[7] = bitRead(inByte, 5);
+            ybits[8] = bitRead(inByte, 6);
+            ybits[9] = bitRead(inByte, 7);
             Serial.write("i");
           }else if(identifier == 5){
             //sixth data byte
+            ybits[10] = bitRead(inByte, 3);
+            ybits[11] = bitRead(inByte, 4);
+            ybits[12] = bitRead(inByte, 5);
+            ybits[13] = bitRead(inByte, 6);
+            ybits[14] = bitRead(inByte, 7);
             Serial.write("j");
           }
         }
       }
       Serial.write("x");
       executeFrame(inputFrame);
+      for(int i=0;i<15;i++){
+        Serial.write(xbits[i]);
+      }
     }
   }
-}
+}*/
