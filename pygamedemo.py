@@ -4,23 +4,6 @@ from serial.tools import list_ports
 import time
 from initlookups import *
 clock = pygame.time.Clock()
-"""
-TAS protocol
-PC: 50 (tell it we’re TASING)
-PC: pollsperframe (currently only 4 is implemented)
-PC: 65 or anything (65 signals that we’re starting with battery insertion, anything else signals we’re not)
-RPLY: queue_size (80 for now)
-RPLY: num in queue
-PC: frame data transfer
-Repeat last two steps until RPLY says 180 (buffer full)
-PC: anything (signal starting)
-Starts replaying
-At the beginning of frame:
-RPLY: 190 if touchscreen isn’t being spoofed, 189 if it is (timing is tight if we are spoofing touchscreen)
-RPLY: # of frames in queue
-RPLY: 191 whenever a poll is done
-PC: responsible for sending frames at the right time depending on Replay device output
-"""
 
 def chooseDevice():
     serialdevices = []
@@ -63,7 +46,87 @@ def verifyDevice(comport):
     tempser.close()
     print("Verification status of "+comport+" is "+str(verified))
     return verified
+
+def getResponse():
+    while ser.in_waiting == 0:
+        #print("waiting")
+        pass
+    for byte in ser.read():
+        #print(byte)
+        return byte
+
+def sendPos(xposlist, yposlist):
+    ser.read(ser.in_waiting)
+    #print(xposlist, "sending pos")
+    sendByte(30)
+    numsent = 0
+    running = True
+    while running:
+        response = getResponse()
+        if response == 16:
+            running = False
+        else:
+            numsent = response
+            sendByte(xposlist[numsent]+50)
+        
+    sendByte(68)
+    ser.read(ser.in_waiting)
+    sendByte(31)
+    numsent = 0
+    running = True
+    while running:
+        response = getResponse()
+        if response == 16:
+            running = False
+        else:
+            numsent = response
+            sendByte(yposlist[numsent]+50)
+        
+    sendByte(68)
+
+
+def sendLookupPos(xpos, ypos):
+    found = False
+    index = 0
+    while not found:
+        currentlookupx = xlookup[index]
+        #print(currentlookup)
+        if currentlookupx[0] == xpos:
+            found = True
+        index+=1
+    found = False
+    index = 0
+    while not found:
+        currentlookupy = ylookup[index]
+        #print(currentlookup)
+        if currentlookupy[0] == ypos:
+            found = True
+        index+=1
+    sendPos(currentlookupx[1], currentlookupy[1])
     
+def changeBits(poslist, amount):
+    string = ""
+    for bit in poslist:
+        string=string+str(bit)
+    intval = int(string, 2)
+    intval = intval+amount
+    if intval<0:
+        intval = 0
+    string = "{0:b}".format(intval)#converting it back to binary
+    string = "0"*(16-len(string))+string#padding with 0s to get to 16 bits
+    toReturn = []
+    for bit in string:
+        toReturn.append(int(bit))
+    #print(toReturn)
+    return toReturn
+
+
+def sendMousePosOld(pos):
+    sendLookupPos(pos[0], pos[1])
+
+def sendMousePos(pos):
+    stringToSend = mousePosToLine(pos[0], pos[1])
+    transmitData(stringToSend)
 
 def getLookupPos(xpos, ypos):
     found = False
@@ -167,6 +230,11 @@ def parseString(datastring):
 
     return toSend
 
+def mousePosToLine(x, y):
+    if not mousestate:
+        return "||P "+str(x).zfill(3)+" "+str(y).zfill(3)+" 0|"
+    else:
+        return "|| "+str(x).zfill(3)+" "+str(y).zfill(3)+" 0|"
 
 def getAllRead():
     for i in range(ser.in_waiting):
@@ -197,19 +265,51 @@ print("Initing serial")
 initSerial(chooseDevice())
 print("Serial Inited")
 
-f = open("testTAS.dsm", "r")
 
-sendByte(50)
-sendByte(4)
-sendByte(69)
-getResponse()
-filling_queue = True
-while(filling_queue):
-    response = getResponse()
-    print(response)
-    if response == 180:
-        filling_queue = False
-    else:
-        transmitData(f.readline())
 
+mousepos  = 0, 0
+mousestate = 1 #1 means not clicked, 0 means clicked
+
+pygame.init()
+size = width, height = 256, 192
+screen = pygame.display.set_mode(size)
+print("Setted up")
+pygame.display.update()
+
+sendByte(32)#just pen down
+
+
+#f = open("ylookup.txt", "w")
+currentval = 0
+#ylookup = []
+
+font = pygame.font.Font('freesansbold.ttf', 32)
+
+while True:
+    pygame.display.update()
+    #pygame.clock.tick(30)
+    events = False
+    for event in pygame.event.get():
+        events = True
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mousepos = event.pos
+            mousestate = 0
+            #print("MOUSEDOWN", event.pos)
+            #sendByte(32)
+            sendMousePos(event.pos)
+            #clicked
+        elif event.type == pygame.MOUSEBUTTONUP:
+            mousepos = event.pos
+            mousestate = 1
+            sendMousePos(event.pos)
+            #print("MOUSEUP")
+            #sendByte(33)
+            #released
+        elif event.type == pygame.MOUSEMOTION and (not mousestate):
+            mousepos = event.pos
+            #print("MOVE", event.pos)
+            sendMousePos(event.pos)
+            #released
+        
+    
 
