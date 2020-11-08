@@ -71,10 +71,6 @@ volatile boolean xbits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0}
 volatile boolean ybits[16] = {0, 1, 1, 1, 1, 1, 1, 1,    0, 0, 0, 0, 0, 0, 0, 0};
 volatile boolean bbits[16] = {0, 0, 0, 1, 0, 1, 1, 1,    1, 0, 0, 0, 0, 0, 0, 0};
 
-void FASTRUN executeFrameOld(frameData Frame){
-  memcpy(xbits, Frame.framexbits, 16);//Tested and works - reassigns the array correctly 
-  memcpy(ybits, Frame.frameybits, 16);
-}
 void FASTRUN executeFrame(frameData Frame){
   digitalWriteFast(PEN, Frame.pen);
   //Can't just digitalWrite to the button pins, each line is required (can't use a loop because I'm using digitalWriteFast)
@@ -224,6 +220,7 @@ void attachTouchscreenInterrupts(){
 
 FASTRUN void syncinterrupt(){
   numpolls=0;
+  Serial.write(15);
 }
 
 FASTRUN void CSfall() {
@@ -299,73 +296,13 @@ FASTRUN void clockchangeb(){
   }
 }
 
-/*
-FASTRUN void loop() {
-  if(Serial.available()>0){
-    byte inbyte = Serial.read();
-    if(inbyte == 30){
-      frameData inputFrame;
-      //adjusting x  pos
-      //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
-      byte numbytesreceived = 0;
-      boolean receiving = true;
-      while(receiving){
-        Serial.write(numbytesreceived);//letting the pc know how many bits the DS has gotten - hopefully useful in case of a dropped bit somewhere
-        while(Serial.available()==0){
-          //pass - waiting until we're sure we have data in
-        }
-        inbyte = Serial.read();
-        if(inbyte==50){
-          inputFrame.framexbits[numbytesreceived] = 0;
-          numbytesreceived++;
-        }else if(inbyte==51){
-          inputFrame.framexbits[numbytesreceived] = 1;
-          numbytesreceived++;
-        }else if(inbyte == 68){
-          //done with the transmission
-          receiving = false;
-        } 
-      }
-      while(Serial.read()!=31){}
-      //adjusting y pos
-      //we need 16 bits - in order to get this to be more consistent I will just send 16 bytes over
-      numbytesreceived = 0;
-      receiving = true;
-      while(receiving){
-        Serial.write(numbytesreceived);//letting the pc know how many bits the DS has gotten - hopefully useful in case of a dropped bit somewhere
-        while(Serial.available()==0){
-          //pass - waiting until we're sure we have data in
-        }
-        inbyte = Serial.read();
-        if(inbyte==50){
-          inputFrame.frameybits[numbytesreceived] = 0;
-          numbytesreceived++;
-        }else if(inbyte==51){
-          inputFrame.frameybits[numbytesreceived] = 1;
-          numbytesreceived++;
-        }else if(inbyte == 68){
-          //done with the transmission
-          receiving = false;
-        }
-      }
-      executeFrame(inputFrame);
-    }else if(inbyte == 32){
-      //touchscreen click
-      digitalWriteFast(PEN, LOW);
-    }else if(inbyte == 33){
-      //touchscreen release
-      digitalWriteFast(PEN, HIGH);
-    }
-  }
-  
-}*/
 FASTRUN void loop() {
   if(Serial.available()>0){
     byte inByte = Serial.read();
-    Serial.write("X");
-    Serial.println(int(inByte));
+    //Serial.write("X");
+    //Serial.println(int(inByte));
     if (inByte==245){
-      Serial.write("Y");
+      //Serial.write("Y");
       frameData inputFrame;
       //starting with a data transfer, starting with buttons
       boolean transferring = true;
@@ -375,7 +312,7 @@ FASTRUN void loop() {
           byte identifier = inByte & firstthreebitmask;
           if(identifier==7){
             //move onto the next section
-            Serial.write("d");
+            //Serial.write("d");
             transferring=false;
           }else if(identifier == 0){
             //first data byte
@@ -385,7 +322,7 @@ FASTRUN void loop() {
             inputFrame.x = bitRead(inByte, 5);
             inputFrame.y = bitRead(inByte, 6);
             inputFrame.dl = bitRead(inByte, 7);
-            Serial.write("a");
+            //Serial.write("a");
           }else if(identifier == 4){
             //second data byte
             inputFrame.dr = bitRead(inByte, 3);
@@ -393,7 +330,7 @@ FASTRUN void loop() {
             inputFrame.dd = bitRead(inByte, 5);
             inputFrame.l = bitRead(inByte, 6);
             inputFrame.r = bitRead(inByte, 7);
-            Serial.write("b");
+            //Serial.write("b");
           }else if(identifier == 2){
             //third data byte
             inputFrame.startbutton = bitRead(inByte, 3);
@@ -401,11 +338,11 @@ FASTRUN void loop() {
             inputFrame.lid = bitRead(inByte, 5);
             inputFrame.pen = bitRead(inByte, 6);
             inputFrame.pwr = bitRead(inByte, 7);
-            Serial.write("c");
+            //Serial.write("c");
           }
         }
       }
-      Serial.write("y");
+      //Serial.write("y");
       //moving onto touchscreen
       transferring = true;
       while(transferring==true){
@@ -414,7 +351,7 @@ FASTRUN void loop() {
           byte identifier = inByte & firstthreebitmask;
           if(inByte==255){
             //finishing the transfer
-            Serial.write("k");
+            //Serial.write("k");
             transferring=false;
           }else if(identifier == 0){
             //first data byte
@@ -423,7 +360,7 @@ FASTRUN void loop() {
             inputFrame.framexbits[2] = bitRead(inByte, 5);
             inputFrame.framexbits[3] = bitRead(inByte, 6);
             inputFrame.framexbits[4] = bitRead(inByte, 7);
-            Serial.write("e");
+            //Serial.write("e");
           }else if(identifier == 4){
             //second data byte
             inputFrame.framexbits[5] = bitRead(inByte, 3);
@@ -431,7 +368,7 @@ FASTRUN void loop() {
             inputFrame.framexbits[7] = bitRead(inByte, 5);
             inputFrame.framexbits[8] = bitRead(inByte, 6);
             inputFrame.framexbits[9] = bitRead(inByte, 7);
-            Serial.write("f");
+            //Serial.write("f");
           }else if(identifier == 2){
             //third data byte
             inputFrame.framexbits[10] = bitRead(inByte, 3);
@@ -439,7 +376,7 @@ FASTRUN void loop() {
             inputFrame.framexbits[12] = bitRead(inByte, 5);
             inputFrame.framexbits[13] = bitRead(inByte, 6);
             inputFrame.framexbits[14] = bitRead(inByte, 7);
-            Serial.write("g");
+            //Serial.write("g");
           }else if(identifier == 6){
             //fourth data byte
             inputFrame.frameybits[0] = bitRead(inByte, 3);
@@ -447,7 +384,7 @@ FASTRUN void loop() {
             inputFrame.frameybits[2] = bitRead(inByte, 5);
             inputFrame.frameybits[3] = bitRead(inByte, 6);
             inputFrame.frameybits[4] = bitRead(inByte, 7);
-            Serial.write("h");
+            //Serial.write("h");
           }else if(identifier == 1){
             //fifth data byte
             inputFrame.frameybits[5] = bitRead(inByte, 3);
@@ -455,7 +392,7 @@ FASTRUN void loop() {
             inputFrame.frameybits[7] = bitRead(inByte, 5);
             inputFrame.frameybits[8] = bitRead(inByte, 6);
             inputFrame.frameybits[9] = bitRead(inByte, 7);
-            Serial.write("i");
+            //Serial.write("i");
           }else if(identifier == 5){
             //sixth data byte
             inputFrame.frameybits[10] = bitRead(inByte, 3);
@@ -463,11 +400,11 @@ FASTRUN void loop() {
             inputFrame.frameybits[12] = bitRead(inByte, 5);
             inputFrame.frameybits[13] = bitRead(inByte, 6);
             inputFrame.frameybits[14] = bitRead(inByte, 7);
-            Serial.write("j");
+            //Serial.write("j");
           }
         }
       }
-      Serial.write("x");
+      //Serial.write("x");
       executeFrame(inputFrame);
     }
   }

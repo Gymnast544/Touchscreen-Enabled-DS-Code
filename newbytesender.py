@@ -152,8 +152,11 @@ def getResponse():
         #print("waiting")
         pass
     for byte in ser.read():
-        print(byte)
+        #print(byte)
         return byte
+
+def drainSerial():
+    ser.read(ser.in_waiting)
 
 datastringsample = "|0|.............000 000 0|"
 datastringsample2 = "|0|........P....191 128 0|"
@@ -164,13 +167,19 @@ byte3buttons = ["T", "S", "C", "P", "O"] #sTart, Select, Cover (lid), Pen, PWR (
 
 
 def parseString(datastring):
-    datafield = datastring.split("|")[2]
-    touchdata = datafield[-9:]
-    touchlist = touchdata.split()
-    touchx = int(touchlist[0])
-    touchy = int(touchlist[1])
-    touchpen = int(touchlist[2])
-    print(touchx, touchy, touchpen)
+    try:
+        datafield = datastring.split("|")[2]
+        touchdata = datafield[-9:]
+        touchlist = touchdata.split()
+        touchx = int(touchlist[0])
+        touchy = int(touchlist[1])
+        touchpen = int(touchlist[2])
+    except:
+        touchx = 0
+        touchy = 0
+        touchpen = 0
+        print("Error with '|' characters")
+    #print(touchx, touchy, touchpen)
 
     byte1=0
     byte2=4
@@ -233,8 +242,11 @@ def getAllRead():
         print(ser.read())
 
 def transmitData(datastring):
-    print("Transmitting" +datastring)
+    #print("Transmitting" +datastring)
     bytesToSend = parseString(datastring)
+    drainSerial()
+    while(getResponse()!=15):
+        pass
     sendByte(245)
     sendByte(bytesToSend[0])
     sendByte(bytesToSend[1])
@@ -271,7 +283,7 @@ sendByte(32)#just pen down
 currentval = 0
 #ylookup = []
 
-font = pygame.font.Font('freesansbold.ttf', 32) 
+font = pygame.font.Font('freesansbold.ttf', 32)
 
 while True:
     pygame.display.update()
@@ -279,8 +291,6 @@ while True:
     events = False
     for event in pygame.event.get():
         events = True
-
-            
         if event.type == pygame.MOUSEBUTTONDOWN:
             mousepos = event.pos
             mousestate = 0
