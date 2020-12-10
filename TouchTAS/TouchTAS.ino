@@ -155,13 +155,14 @@ void FASTRUN executeFrame(frameData Frame) {
     pinMode(DPAD_RIGHT_PIN, OUTPUT);
     digitalWriteFast(DPAD_RIGHT_PIN, LOW);
   }
+  /*
   if (Frame.lid) {
     //button isn't pressed
     pinMode(LID, INPUT);
   } else {
     pinMode(LID, OUTPUT);
     digitalWriteFast(A_PIN, LOW);
-  }
+  }*/
   //TODO: IMPLEMENT POWER
   memcpy(xbits, Frame.framexbits, 16);//Tested and works - reassigns the array correctly
   memcpy(ybits, Frame.frameybits, 16);
@@ -184,8 +185,9 @@ volatile LinkedList<frameData> framequeue = LinkedList<frameData>();
 
 void FASTRUN TASsyncinterrupt(){
   numpolls=0;
+  Serial.write("Y");
   executeFrame(framequeue.shift());//pulls the next frame out of the queue
-  Serial.write(framequeue.size());
+  Serial.write("X");
 }
 
 void FASTRUN batteryPowerOn() {
@@ -235,13 +237,17 @@ void loop() {
       attachInterrupt(CS_PIN, CSfall, FALLING);
       if(poweronstart){
         batteryPowerOn();
+        Serial.write("z");
       }
+      Serial.write("R");
       while(framequeue.size()>0){
+        Serial.write("S");
         //continue running the TAS
         if(Serial.available()>0){
           framequeue.add(frameTransfer());
         }
       }
+      Serial.write(230);//denoting the end of playback
     }
   }
 }
@@ -262,10 +268,6 @@ void setupTouchscreenPins() {
   digitalWrite(PEN, HIGH);
   pinMode(CS_PIN, INPUT);
   pinMode(SYNC, INPUT);
-}
-
-void FASTRUN attachTouchscreenInterrupts() {
-  
 }
 
 void detachTouchscreenInterrupts() {

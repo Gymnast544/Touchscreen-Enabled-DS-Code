@@ -89,7 +89,7 @@ def getResponse():
         #print("waiting")
         pass
     for byte in ser.read():
-        #print(byte)
+        print(byte, chr(byte))
         return byte
 
 def drainSerial():
@@ -177,8 +177,8 @@ def transmitData(datastring):
     #print("Transmitting" +datastring)
     bytesToSend = parseString(datastring)
     drainSerial()
-    while(getResponse()!=15):
-        pass
+    #while(getResponse()!=15):
+        #print("waiting on response of 15")
     sendByte(245)
     sendByte(bytesToSend[0])
     sendByte(bytesToSend[1])
@@ -200,16 +200,26 @@ print("Serial Inited")
 f = open("testTAS.dsm", "r")
 
 sendByte(50)
+getResponse()
 sendByte(4)
 sendByte(69)
-getResponse()
+queue_size = getResponse()
+print("Queue size is", queue_size)
 filling_queue = True
+print("Filling queue")
 while(filling_queue):
     response = getResponse()
     print(response)
     if response == 180:
         filling_queue = False
     else:
-        transmitData(f.readline())
+        data = f.readline()
+        print(data)
+        transmitData(data)
+        print("Finished transmission")
 
+input("Press enter to start")
+sendByte(69)
+while(getResponse!=230):
+    pass
 
