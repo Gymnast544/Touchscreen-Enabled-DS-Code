@@ -161,8 +161,8 @@ def drainSerial():
 datastringsample = "|0|.............000 000 0|"
 datastringsample2 = "|0|........P....191 128 0|"
 
-byte1buttons = ["A", "B", "X", "Y", "W"] #A, B, X, Y, DPADLEFT (west)
-byte2buttons = ["E", "U", "D", "L", "R"] #DPADRIGHT (east), DPADUP, DPADDOWN, L shoulder, R shoulder
+byte1buttons = ["A", "B", "X", "Y", "L"] #A, B, X, Y, DPADLEFT (west)
+byte2buttons = ["R", "U", "D", "W", "E"] #DPADRIGHT (east), DPADUP, DPADDOWN, L shoulder, R shoulder
 byte3buttons = ["T", "S", "C", "P", "O"] #sTart, Select, Cover (lid), Pen, PWR (On/Off)
 
 
