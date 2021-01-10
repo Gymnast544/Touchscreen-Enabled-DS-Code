@@ -62,13 +62,27 @@ struct frameData {
   bool frameybits[16] = {0, 0, 0, 0, 0, 0, 0, 0,    0, 0, 0, 0, 0, 0, 0, 0};
 };
 
+bool attachinterrupts = false;
+
 void FASTRUN executeFrame(frameData Frame) {
   digitalWriteFast(PEN, Frame.pen);
   if(Frame.pen==0){
-    Serial.write(190);//letting it know that we're not spoofing touchscreen, so no tight timing
+    Serial.write(190);//tight timing
   }
   else{
-    Serial.write(189);
+    Serial.write(189);//no tight timing
+  }
+  if(!Frame.pwr){
+    Serial.write(101);
+    //supposed to wait for the DS to turn off, then turn it back on
+    detachInterrupt(SYNC);
+    delay(1000);
+    attachinterrupts = true; 
+    //pinMode(PWR, OUTPUT);
+    //digitalWriteFast(PWR, LOW);
+    
+  }else{
+    Serial.write(102);
   }
   //Can't just digitalWrite to the button pins, each line is required (can't use a loop because I'm using digitalWriteFast)
   if (Frame.a) {
@@ -179,15 +193,17 @@ void setup() {
 volatile byte pollsperframe;
 bool poweronstart;
 
-#define queue_size 80
+#define queue_size 40
 #include <LinkedList.h>
 volatile LinkedList<frameData> framequeue = LinkedList<frameData>();
 
 void FASTRUN TASsyncinterrupt(){
   numpolls=0;
-  Serial.write("Y");
   executeFrame(framequeue.shift());//pulls the next frame out of the queue
-  Serial.write("X");
+  Serial.write(framequeue.size());
+}
+void FASTRUN attachsyncinterrupts(){
+  attachInterrupt(SYNC, TASsyncinterrupt, FALLING);
 }
 
 void FASTRUN batteryPowerOn() {
@@ -204,7 +220,8 @@ void FASTRUN batteryPowerOn() {
   }
   pinMode(PWR, OUTPUT);
   digitalWrite(PWR, LOW);
-  delay(200);
+  delay(50);
+  pinMode(PWR, INPUT);
 }
 
 void loop() {
@@ -234,20 +251,28 @@ void loop() {
       while (Serial.available() == 0) {}//waiting for a single byte to start
       //starting TAS
       attachInterrupt(SYNC, TASsyncinterrupt, FALLING);
+      Serial.write(200);
       attachInterrupt(CS_PIN, CSfall, FALLING);
+      Serial.write(201);
       if(poweronstart){
         batteryPowerOn();
         Serial.write("z");
       }
+      Serial.write(202);
       Serial.write("R");
       while(framequeue.size()>0){
-        Serial.write("S");
         //continue running the TAS
         if(Serial.available()>0){
           framequeue.add(frameTransfer());
         }
+        if(attachinterrupts){
+          attachsyncinterrupts();
+        }
       }
       Serial.write(230);//denoting the end of playback
+      detachInterrupt(SYNC);
+      detachInterrupt(CS_PIN);
+      resetbuttons();
     }
   }
 }

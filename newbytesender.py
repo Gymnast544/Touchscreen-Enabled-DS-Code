@@ -1,14 +1,19 @@
-import pygame
 import serial
 from serial.tools import list_ports
 import time
 from initlookups import *
-clock = pygame.time.Clock()
+
+import DSMplusreader
+workfile = "workfile.dsm"
+originalfile = "SoigNSMB.dsm"
+DSMplusreader.parseFile(originalfile, workfile)
+
+startline = 2600
 """
 TAS protocol
 PC: 50 (tell it we’re TASING)
 PC: pollsperframe (currently only 4 is implemented)
-PC: 65 or anything (65 signals that we’re starting with battery insertion, anything else signals we’re not)
+PC: 65 or anything (65 signals that we’re starting without battery insertion, anything else signals we’re not)
 RPLY: queue_size (80 for now)
 RPLY: num in queue
 PC: frame data transfer
@@ -21,7 +26,7 @@ RPLY: # of frames in queue
 RPLY: 191 whenever a poll is done
 PC: responsible for sending frames at the right time depending on Replay device output
 """
-
+    
 def chooseDevice():
     serialdevices = []
     for index, serialport in enumerate(list_ports.comports()):
@@ -89,7 +94,7 @@ def getResponse():
         #print("waiting")
         pass
     for byte in ser.read():
-        print(byte, chr(byte))
+        #print(byte, chr(byte))
         return byte
 
 def drainSerial():
@@ -98,9 +103,9 @@ def drainSerial():
 datastringsample = "|0|.............000 000 0|"
 datastringsample2 = "|0|........P....191 128 0|"
 
-byte1buttons = ["A", "B", "X", "Y", "W"] #A, B, X, Y, DPADLEFT (west)
-byte2buttons = ["E", "U", "D", "L", "R"] #DPADRIGHT (east), DPADUP, DPADDOWN, L shoulder, R shoulder
-byte3buttons = ["T", "S", "C", "P", "O"] #sTart, Select, Cover (lid), Pen, PWR (On/Off)
+byte1buttons = ["A", "B", "X", "Y", "L"] #A, B, X, Y, DPADLEFT
+byte2buttons = ["R", "U", "D", "W", "E"] #DPADRIGHT, DPADUP, DPADDOWN, L shoulder (east), R shoulder (west)
+byte3buttons = ["T", "S", "C", "P", "Z"] #sTart, Select, Cover (lid), Pen, PWR (On/Off)
 
 
 def parseString(datastring):
@@ -115,7 +120,7 @@ def parseString(datastring):
         touchx = 0
         touchy = 0
         touchpen = 0
-        print("Error with '|' characters")
+        #print("Error with '|' characters")
     #print(touchx, touchy, touchpen)
 
     byte1=0
@@ -174,6 +179,8 @@ def getAllRead():
         print(ser.read())
 
 def transmitData(datastring):
+    global currentline
+    currentline+=1
     #print("Transmitting" +datastring)
     bytesToSend = parseString(datastring)
     drainSerial()
@@ -197,12 +204,30 @@ print("Initing serial")
 initSerial(chooseDevice())
 print("Serial Inited")
 
-f = open("testTAS.dsm", "r")
+
+
+f = open(workfile, "r")
+TASlines = []
+for line in f:
+    TASlines.append(line)
+f.close()
+currentline=0
+
+
+for i in range(startline):
+    TASlines.pop(0)
+    currentline+=1
 
 sendByte(50)
 getResponse()
 sendByte(4)
-sendByte(69)
+
+
+if "BATTERYPOWERON" in TASlines[0]:
+    TASlines.pop(0)
+    sendByte(69)
+else:
+    sendByte(65)
 queue_size = getResponse()
 print("Queue size is", queue_size)
 filling_queue = True
@@ -213,13 +238,44 @@ while(filling_queue):
     if response == 180:
         filling_queue = False
     else:
-        data = f.readline()
+        data = TASlines.pop(0)
         print(data)
         transmitData(data)
         print("Finished transmission")
 
 input("Press enter to start")
 sendByte(69)
-while(getResponse!=230):
-    pass
+running = True
+tighttiming = False
+numframes = 100
+amountframesneeded = 0
+while(running):
+    response = getResponse()
+    if response==230:
+        running=False
+    elif response<100:
+        print(response, "Current line is", currentline)
+        #print("There are "+str(response)+" frames left")
+        numframes = response
+        if numframes<queue_size:
+            amountframesneeded = queue_size-numframes
+            if amountframesneeded>3:
+                amountframesneeded == 3
+                #capping number of frames transmitted over a frame to 3
+            if not tighttiming:
+                for i in range(amountframesneeded):
+                    transmitData(TASlines.pop(0))
+                    amountframesneeded = amountframesneeded-1
+    elif response == 189:
+        #print("no tight timing")
+        tighttiming = False
+    elif response == 190:
+        #print("tight timing")
+        tighttiming = True
+    elif response==191:
+        #print("good time to send")
+        if amountframesneeded>0 and tighttiming:
+            transmitData(TASlines.pop(0))
+            amountframesneeded = amountframesneeded-1
+    
 
