@@ -6,13 +6,47 @@ import win32api
 import win32con
 import win32gui
 from pynput.mouse import Listener
+import pygame
+pygame.init()
+
+
+def initjoysticks():
+    controllers=[]
+    for i in range(pygame.joystick.get_count()):
+        joystick = pygame.joystick.Joystick(i)
+        joystick.init()
+        if joystick.get_name()=="Wireless Controller" and joystick.get_numaxes()==6 and joystick.get_numbuttons()==14 and joystick.get_numhats()==1:
+            print("Valid controller")
+        controllers.append(joystick)
+
+    print("Press cross on the desired joystick")
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type==pygame.JOYBUTTONDOWN:
+                print(event.button)
+                if event.button == 1:
+                    joystick = event.joy
+                    for controller in controllers:
+                        if controller.get_id()!=joystick:
+                            controller.quit()
+                            #de-inits all irrelevant controllers
+                    running = False
+
 
 def chooseDevice():
     serialdevices = []
-    for index, serialport in enumerate(list_ports.comports()):
-        print(str(index+1)+": "+serialport.description)
-        serialdevices.append(serialport.device)
-    serialindex = int(input("Choose the serial port to use (Enter the number) "))
+    while len(serialdevices)==0:
+        for index, serialport in enumerate(list_ports.comports()):
+            print(str(index+1)+": "+serialport.description)
+            serialdevices.append(serialport.device)
+        if len(serialdevices) == 1:
+            serialindex = 0
+        elif len(serialdevices)>1:
+            serialindex = int(input("Choose the serial port to use (Enter the number) "))
+        else:
+            input("No devices found, press enter to try again")
     comport = serialdevices[serialindex-1]
     return comport
 
@@ -233,10 +267,13 @@ def parseString(datastring):
     return toSend
 
 def mousePosToLine(x, y):
+    buttonstring = ""
+    for char in charspressed:
+        buttonstring = buttonstring+char
     if not mousestate:
-        return "||P "+str(x).zfill(3)+" "+str(y).zfill(3)+" 0|"
+        return buttonstring+"||P "+str(x).zfill(3)+" "+str(y).zfill(3)+" 0|"
     else:
-        return "|| "+str(x).zfill(3)+" "+str(y).zfill(3)+" 0|"
+        return buttonstring+"|| "+str(x).zfill(3)+" "+str(y).zfill(3)+" 0|"
 
 def getAllRead():
     for i in range(ser.in_waiting):
@@ -317,7 +354,7 @@ This usually means you forgot to open it\nPress enter to try again""")
     #Doing some stuff to properly get the window rect (normal method doesn't do it right)
     print(getwindowcaptureproperties())
     
-
+initjoysticks()
 initCapture()
 print("Initing serial")
 initSerial(chooseDevice())
@@ -327,7 +364,9 @@ print("Serial Inited")
 
 mousepos  = 0, 0
 mousestate = 1 #1 means not clicked, 0 means clicked
-mousechange = True
+statechange = True
+if statechange:
+    print("STATECHANGE")
 
 
 sendByte(32)#just pen down
@@ -360,32 +399,109 @@ def getCorrectedPos(inputx, inputy):
         #mouse is off the screen
         print("Using corrected pos override")
         mousestate = 1
-        sendMousePos((0, 0))
+        setFlag()
     return x, y
 
-
 def on_move(x, y):
-    global mousepos, mousechange
+    global mousepos, statechange
     mousepos = getCorrectedPos(x, y)
     if mousestate == 0 and not(mousepos[0]==-1 or mousepos[1]==-1):
-        sendMousePos(mousepos)
+        setFlag()
 
 def on_click(x, y, button, pressed):
-    global mousepos, mousestate, mousechange
+    #no longer being used due to dualshock support
+    global mousepos, mousestate, statechange
     mousepos = getCorrectedPos(x, y)
     if pressed:
         mousestate = 0
     else:
         mousestate = 1
     if not(mousepos[0]==-1 or mousepos[1]==-1):
-        sendMousePos(mousepos)  
+        setFlag()
 
+def setFlag():
+    global statechange
+    statechange = True
+    #print(statechange)
 
-with Listener(on_move=on_move, on_click=on_click) as listener:
-    listener.join()
+#on_click=on_click - use this as a param in the above function to enable click support
+print("Starting listener")
+Listener(on_move=on_move).start()
 
+"""
+with  as listener:
+    listener.start()"""
+
+buttontochar = {0:"Y", 1:"B", 2:"A", 3:"X", 4:"W", 5:"E", 9:"T", 8:"S", 12:"C"}
+possiblebuttons = list(buttontochar)
+chartobutton = {v: k for k, v in buttontochar.items()}
+possiblechars = list(chartobutton)
+charspressed = []
 while True:
-    pass
+    for event in pygame.event.get():
+        if event.type == pygame.JOYBUTTONDOWN:
+            print("Button down", event.button)
+            if event.button == 13:#touchpad click
+                mousestate = 0
+                statechange = True
+            elif event.button in possiblebuttons:
+                print(charspressed)
+                if not (buttontochar[event.button] in charspressed):
+                    print("Adding char")
+                    charspressed.append(buttontochar[event.button])
+                    print(charspressed)
+                    statechange = True
+        elif event.type == pygame.JOYBUTTONUP:
+            if event.button == 13:#touchpad click
+                mousestate = 1
+                statechange = True
+            elif event.button in possiblebuttons:
+                if (buttontochar[event.button] in charspressed):
+                    try:
+                        charspressed.pop(charspressed.index(buttontochar[event.button]))
+                        statechange = True
+                    except:
+                        print("Error removing from list")
+        elif event.type == pygame.JOYHATMOTION:
+            print(event.value)
+            charstoadd = []
+            charstoremove = []
+            if event.value[0] == -1:
+                charstoadd.append("L")
+                charstoremove.append("R")
+            elif event.value[0] == 1:
+                charstoremove.append("L")
+                charstoadd.append("R")
+            elif event.value[0] == 0:
+                charstoremove.append("L")
+                charstoremove.append("R")
+                
+            if event.value[1] == -1:
+                charstoadd.append("D")
+                charstoremove.append("U")
+            elif event.value[1] == 1:
+                charstoremove.append("D")
+                charstoadd.append("U")
+            elif event.value[1] == 0:
+                charstoremove.append("D")
+                charstoremove.append("U")
+            for char in charstoadd:
+                if not (char in charspressed):
+                    charspressed.append(char)
+            for char in charstoremove:
+                if char in charspressed:
+                    try:
+                        charspressed.pop(charspressed.index(char))
+                    except:
+                        print("Error removing char")
+            statechange = True
+            
+    if statechange:
+        if mousepos[0]<0 or mousepos[1]<0:  
+            sendMousePos((0, 0))
+        else:
+            sendMousePos(mousepos)
+        statechange = False
 
         
     
