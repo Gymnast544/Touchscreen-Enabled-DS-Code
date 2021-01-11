@@ -121,10 +121,14 @@ def changeBits(poslist, amount):
         toReturn.append(int(bit))
     #print(toReturn)
     return toReturn
-
+sendingmousepos = False
 def sendMousePos(pos):
-    stringToSend = mousePosToLine(pos[0], pos[1])
-    transmitData(stringToSend)
+    global sendingmousepos
+    if not sendingmousepos:
+        sendingmousepos = True
+        stringToSend = mousePosToLine(pos[0], pos[1])
+        transmitData(stringToSend)
+        sendingmousepos = False
 
 def getLookupPos(xpos, ypos):
     found = False
@@ -333,18 +337,24 @@ currentval = 0
 def getCorrectedPos(inputx, inputy):
     win32gui.ShowWindow(windowcapture, win32con.SW_MAXIMIZE)
     window_x, window_y, width, height = getwindowcaptureproperties()
-    print(window_x, window_y, width, height)
-    window_y+=192#correcting for top screen
-    height-=192
-    x = inputx-window_x
-    y = inputy-window_y
+    #print(window_x, window_y, width, height)
+    scalefactor=height/384
+    correctedwidth = 256*scalefactor
+    correctedwindowx = window_x+int((width-correctedwidth)/2)
+
+    window_y+=height*.5
+    height-=height*.5
+    #correcting for top screen
+    x = int((inputx-correctedwindowx)/scalefactor)
+    y = int((inputy-window_y)/scalefactor)
+    #print(x, y, scalefactor, width, correctedwindowx, correctedwidth)
     if x<0:
         x=-1
-    elif x>=width:
+    elif x>=256:
         x=-1
     if y<0:
         y=-1
-    elif y>=height:
+    elif y>=192:
         y=-1
     if (x==-1 and mousepos[0]!=-1) or( y==-1 and mousepos[1]!=-1):
         #mouse is off the screen
