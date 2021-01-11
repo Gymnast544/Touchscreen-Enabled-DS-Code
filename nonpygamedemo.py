@@ -1,12 +1,11 @@
-import pygame
 import serial
 from serial.tools import list_ports
 import time
 from initlookups import *
-clock = pygame.time.Clock()
 import win32api
 import win32con
 import win32gui
+from pynput.mouse import Listener
 
 def chooseDevice():
     serialdevices = []
@@ -122,10 +121,6 @@ def changeBits(poslist, amount):
         toReturn.append(int(bit))
     #print(toReturn)
     return toReturn
-
-
-def sendMousePosOld(pos):
-    sendLookupPos(pos[0], pos[1])
 
 def sendMousePos(pos):
     stringToSend = mousePosToLine(pos[0], pos[1])
@@ -261,9 +256,65 @@ def transmitData(datastring):
     #probably want to add input verification, not for now though
 
 
-#I think the appropriate amount to change by is 16
+# DS CAPTURE INPUT
+def windowEnumerationHandler(hwnd, top_windows):
+    top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
+    
+global window_x, window_y, window_w, window_h, windowcapture
+def getwindowproperties(hwnd):
+    print(hwnd)
+    rect = win32gui.GetWindowRect(hwnd)
+    window_x = rect[0]
+    window_y = rect[1]
+    window_w = rect[2] - window_x
+    window_h = rect[3] - window_y
+    return window_x, window_y, window_w, window_h, windowcapture
 
+def getwindowcaptureproperties():
+    global windowcapture
+    x, y, x1, y1 = win32gui.GetClientRect(windowcapture)
+    x, y = win32gui.ClientToScreen(windowcapture, (x, y))
+    x1, y1 = win32gui.ClientToScreen(windowcapture, (x1 - x, y1 - y))
+    return x, y, x1, y1
 
+def setForeground():
+    win32gui.SetForegroundWindow(windowcapture)
+
+d = None
+windowcapture = None
+
+def initCapture():
+    global windowcapture
+    foundwindow = False
+    while foundwindow == False:
+        #Initializing stuff for finding the top window
+        results = []
+        top_windows = []
+        win32gui.EnumWindows(windowEnumerationHandler, top_windows)
+        for i in top_windows:
+            #print(i)
+            if "DS Capture" in i[1]:
+                #print(getwindowproperties(i[0]))
+                if getwindowproperties(i[0])[3]>getwindowproperties(i[0])[2]:
+                    #checks if the window is tall, not wide (there's two DS Capture windows, the tall one is the correct one)
+                    print("Found the frame named \" DS Capture\"")
+                    windowcapture = i[0]
+                    win32gui.ShowWindow(i[0],5)
+                else:
+                    print("DS Capture found, but it didn't fit the requirements. It seems like there might be something up. This might be just the skinny window instead of the tall one selected (the one for recording) This might be useless")
+        #sets the top window to DS Capture. If it's not found then it prompts the user to open it up
+        try:
+            setForeground()
+            foundwindow = True
+        except:
+            input(""""There was an error
+A frame with the name \"DS Capture\" wasn't found
+This usually means you forgot to open it\nPress enter to try again""")
+    #Doing some stuff to properly get the window rect (normal method doesn't do it right)
+    print(getwindowcaptureproperties())
+    
+
+initCapture()
 print("Initing serial")
 initSerial(chooseDevice())
 print("Serial Inited")
@@ -272,56 +323,60 @@ print("Serial Inited")
 
 mousepos  = 0, 0
 mousestate = 1 #1 means not clicked, 0 means clicked
+mousechange = True
 
-pygame.init()
-size = width, height = 256, 192
-fuchsia = (255, 0, 128)
-screen = pygame.display.set_mode(size)
-hwnd = pygame.display.get_wm_info()["window"]
-win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,
-                       win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE) | win32con.WS_EX_LAYERED)
-win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, 0,0,0,0,
-win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
-# Set window transparency color
-win32gui.SetLayeredWindowAttributes(hwnd, win32api.RGB(*fuchsia), 0, win32con.LWA_COLORKEY)
-print("Setted up")
-pygame.display.update()
 
 sendByte(32)#just pen down
-
-
-#f = open("ylookup.txt", "w")
 currentval = 0
-#ylookup = []
 
-font = pygame.font.Font('freesansbold.ttf', 32)
+
+def getCorrectedPos(inputx, inputy):
+    win32gui.ShowWindow(windowcapture, win32con.SW_MAXIMIZE)
+    window_x, window_y, width, height = getwindowcaptureproperties()
+    print(window_x, window_y, width, height)
+    window_y+=192#correcting for top screen
+    height-=192
+    x = inputx-window_x
+    y = inputy-window_y
+    if x<0:
+        x=-1
+    elif x>=width:
+        x=-1
+    if y<0:
+        y=-1
+    elif y>=height:
+        y=-1
+    if (x==-1 and mousepos[0]!=-1) or( y==-1 and mousepos[1]!=-1):
+        #mouse is off the screen
+        print("Using corrected pos override")
+        mousestate = 1
+        sendMousePos((0, 0))
+    return x, y
+
+
+def on_move(x, y):
+    global mousepos, mousechange
+    mousepos = getCorrectedPos(x, y)
+    if mousestate == 0 and not(mousepos[0]==-1 or mousepos[1]==-1):
+        sendMousePos(mousepos)
+
+def on_click(x, y, button, pressed):
+    global mousepos, mousestate, mousechange
+    mousepos = getCorrectedPos(x, y)
+    if pressed:
+        mousestate = 0
+    else:
+        mousestate = 1
+    if not(mousepos[0]==-1 or mousepos[1]==-1):
+        sendMousePos(mousepos)  
+
+
+with Listener(on_move=on_move, on_click=on_click) as listener:
+    listener.join()
 
 while True:
-    screen.fill(fuchsia)
-    pygame.display.update()
-    #pygame.clock.tick(30)
-    events = False
-    for event in pygame.event.get():
-        events = True
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mousepos = event.pos
-            mousestate = 0
-            #print("MOUSEDOWN", event.pos)
-            #sendByte(32)
-            sendMousePos(event.pos)
-            #clicked
-        elif event.type == pygame.MOUSEBUTTONUP:
-            mousepos = event.pos
-            mousestate = 1
-            sendMousePos(event.pos)
-            #print("MOUSEUP")
-            #sendByte(33)
-            #released
-        elif event.type == pygame.MOUSEMOTION and (not mousestate):
-            mousepos = event.pos
-            #print("MOVE", event.pos)
-            sendMousePos(event.pos)
-            #released
+    pass
+
         
     
 
