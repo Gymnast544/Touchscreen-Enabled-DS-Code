@@ -10,6 +10,10 @@ import pygame
 pygame.init()
 
 
+
+buttontochar = {0:"B", 1:"A", 2:"Y", 3:"X", 4:"W", 5:"E", 7:"T", 6:"S", 12:"C"}
+
+
 def initjoysticks():
     controllers=[]
     for i in range(pygame.joystick.get_count()):
@@ -26,7 +30,10 @@ def initjoysticks():
         for event in pygame.event.get():
             if event.type==pygame.JOYBUTTONDOWN:
                 print(event.button)
-                if event.button == 1:
+                if event.button == 1 or event.button==0:
+                    if event.button==1:
+                        global buttontochar
+                        buttontochar = {0:"Y", 1:"B", 2:"A", 3:"X", 4:"W", 5:"E", 9:"T", 8:"S", 12:"C"}
                     joystick = event.joy
                     for controller in controllers:
                         if controller.get_id()!=joystick:
@@ -280,12 +287,13 @@ def getAllRead():
         #ser.read()
         print(ser.read())
 
-def transmitData(datastring):
+def transmitData(datastring, wait=True):
     #print("Transmitting" +datastring)
     bytesToSend = parseString(datastring)
     drainSerial()
-    while(getResponse()!=15):
-        pass
+    if wait:
+        while(getResponse()!=15):
+            pass
     sendByte(245)
     sendByte(bytesToSend[0])
     sendByte(bytesToSend[1])
@@ -374,7 +382,7 @@ currentval = 0
 
 
 def getCorrectedPos(inputx, inputy):
-    win32gui.ShowWindow(windowcapture, win32con.SW_MAXIMIZE)
+    #win32gui.ShowWindow(windowcapture, win32con.SW_MAXIMIZE)
     window_x, window_y, width, height = getwindowcaptureproperties()
     #print(window_x, window_y, width, height)
     scalefactor=height/384
@@ -432,7 +440,6 @@ Listener(on_move=on_move).start()
 with  as listener:
     listener.start()"""
 
-buttontochar = {0:"Y", 1:"B", 2:"A", 3:"X", 4:"W", 5:"E", 9:"T", 8:"S", 12:"C"}
 possiblebuttons = list(buttontochar)
 chartobutton = {v: k for k, v in buttontochar.items()}
 possiblechars = list(chartobutton)
@@ -444,6 +451,15 @@ while True:
             if event.button == 13:#touchpad click
                 mousestate = 0
                 statechange = True
+            elif event.button == 12:#cover
+                transmitData("C", wait=False)
+                closed = True
+                while closed:
+                    for event in pygame.event.get():
+                        if event.type == pygame.JOYBUTTONDOWN:
+                            if event.button == 12:
+                                transmitData("", wait=False)
+                                closed = False
             elif event.button in possiblebuttons:
                 print(charspressed)
                 if not (buttontochar[event.button] in charspressed):
