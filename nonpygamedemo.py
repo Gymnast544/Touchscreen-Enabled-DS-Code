@@ -434,7 +434,7 @@ def setFlag():
 
 #on_click=on_click - use this as a param in the above function to enable click support
 print("Starting listener")
-Listener(on_move=on_move).start()
+Listener(on_move=on_move, on_click=on_click).start()
 
 """
 with  as listener:
