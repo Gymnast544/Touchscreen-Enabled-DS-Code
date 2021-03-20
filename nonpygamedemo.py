@@ -9,6 +9,9 @@ from pynput.mouse import Listener
 import pygame
 pygame.init()
 
+import ctypes
+awareness = ctypes.c_int()
+ctypes.windll.shcore.SetProcessDpiAwareness(2)
 
 
 buttontochar = {0:"B", 1:"A", 2:"Y", 3:"X", 4:"W", 5:"E", 7:"T", 6:"S", 12:"C"}
